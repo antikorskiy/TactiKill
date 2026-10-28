@@ -4,17 +4,8 @@ local C  = TK.Config
 TK.AutoSpawn = TK.AutoSpawn or {}
 local AS = TK.AutoSpawn
 
-local CombineWeapons = {
-	"weapon_smg1",
-	"weapon_ar2",
-	"weapon_shotgun",
-}
-
-local RebelWeapons = {
-	"weapon_smg1",
-	"weapon_shotgun",
-	"weapon_pistol",
-}
+local CombineWeapons = { "weapon_smg1", "weapon_ar2", "weapon_shotgun" }
+local RebelWeapons   = { "weapon_smg1", "weapon_shotgun", "weapon_pistol" }
 
 local function PickRandom(list)
 	if not list or #list == 0 then return nil end
@@ -28,18 +19,14 @@ local function GetCenters()
 			centers[#centers + 1] = ply:GetPos()
 		end
 	end
-
 	if #centers == 0 then
 		for _, sp in ipairs(ents.FindByClass("info_player_start")) do
 			if IsValid(sp) then centers[#centers + 1] = sp:GetPos() end
 		end
 	end
-
 	if #centers == 0 then
-		local spawn = game.GetWorld() and game.GetWorld():GetPos() or Vector(0, 0, 0)
-		centers[#centers + 1] = spawn
+		centers[#centers + 1] = game.GetWorld():GetPos()
 	end
-
 	return centers
 end
 
@@ -65,15 +52,10 @@ end
 
 local function FindSpawnPos(centers)
 	local cfg = C.AutoSpawn
-
 	for _ = 1, cfg.MaxAttempts do
 		local center = centers[math.random(#centers)]
-
-		local angle = math.random() * math.pi * 2
-		local minDist = cfg.MinPlayerDistance
-		local radius = cfg.Radius
-		local dist = minDist + math.sqrt(math.random()) * math.max(radius - minDist, 100)
-
+		local angle  = math.random() * math.pi * 2
+		local dist   = cfg.MinPlayerDistance + math.sqrt(math.random()) * math.max(cfg.Radius - cfg.MinPlayerDistance, 100)
 		local x = center.x + math.cos(angle) * dist
 		local y = center.y + math.sin(angle) * dist
 
@@ -85,33 +67,26 @@ local function FindSpawnPos(centers)
 
 		if tr.Hit and not tr.HitSky and tr.HitNormal.z > 0.5 then
 			local pos = tr.HitPos
-			if pos.z > -5000 and pos.z < 20000 then
-				if not IsPositionOccupied(pos, cfg.MinNpcDistance) then
-					return pos + Vector(0, 0, 20)
-				end
+			if pos.z > -5000 and pos.z < 20000 and not IsPositionOccupied(pos, cfg.MinNpcDistance) then
+				return pos + Vector(0, 0, 20)
 			end
 		end
 	end
-
 	return nil
 end
 
+-- Правильные отношения: AddEntityRelationship для игроков
 local function ApplyRelations(npc)
 	local cfg = C.AutoSpawn
+	local isRebel = npc:GetClass() == "npc_citizen"
 
-	if not cfg.RebelsHostileToPlayer and npc:GetClass() == "npc_citizen" then
-		npc:AddRelationship("player", D_LI, 99)
+	if isRebel and not cfg.RebelsHostileToPlayer then
+		for _, ply in ipairs(player.GetAll()) do
+			if IsValid(ply) then npc:AddEntityRelationship(ply, D_LI, 99) end
+		end
 	else
-		npc:AddRelationship("player", D_HT, 99)
-	end
-
-	for _, ply in ipairs(player.GetAll()) do
-		if IsValid(ply) then
-			if not cfg.RebelsHostileToPlayer and npc:GetClass() == "npc_citizen" then
-				npc:AddEntityRelationship(ply, D_LI, 99)
-			else
-				npc:AddEntityRelationship(ply, D_HT, 99)
-			end
+		for _, ply in ipairs(player.GetAll()) do
+			if IsValid(ply) then npc:AddEntityRelationship(ply, D_HT, 99) end
 		end
 	end
 end
@@ -122,23 +97,16 @@ function AS.CreateCombine(pos)
 
 	npc:SetPos(pos)
 	npc:SetAngles(Angle(0, math.random(0, 360), 0))
-
-	local skill = tostring(C.AutoSpawn.CombineSkill)
 	npc:SetKeyValue("additionalequipment", PickRandom(CombineWeapons) or "weapon_smg1")
 	npc:SetKeyValue("squadname", "Overwatch")
 	npc:SetKeyValue("NumGrenades", "3")
-	npc:SetKeyValue("WeaponType", "0")
-
 	npc:Spawn()
 	npc:Activate()
-
-	local skillTable = skill and skillconv and skillconv[skill] or nil
 
 	if IsValid(npc) then
 		npc.TACTIKILL_Autospawned = true
 		ApplyRelations(npc)
 	end
-
 	return npc
 end
 
@@ -148,12 +116,9 @@ function AS.CreateRebel(pos)
 
 	npc:SetPos(pos)
 	npc:SetAngles(Angle(0, math.random(0, 360), 0))
-
 	npc:SetKeyValue("citizentype", "4")
 	npc:SetKeyValue("additionalequipment", PickRandom(RebelWeapons) or "weapon_smg1")
 	npc:SetKeyValue("SquadName", "Rebels")
-	npc:SetKeyValue("ExpressionType", "2")
-
 	npc:Spawn()
 	npc:Activate()
 
@@ -161,7 +126,6 @@ function AS.CreateRebel(pos)
 		npc.TACTIKILL_Autospawned = true
 		ApplyRelations(npc)
 	end
-
 	return npc
 end
 
@@ -170,18 +134,14 @@ function AS.SpawnCombine(count)
 	local cfg = C.AutoSpawn
 	local centers = GetCenters()
 	local spawned = 0
-
 	for _ = 1, count do
-		if CountAutoSpawned() >= cfg.MaxTotal then
-			break
-		end
+		if CountAutoSpawned() >= cfg.MaxTotal then break end
 		local pos = FindSpawnPos(centers)
 		if pos then
 			local npc = AS.CreateCombine(pos)
 			if IsValid(npc) then spawned = spawned + 1 end
 		end
 	end
-
 	return spawned
 end
 
@@ -190,38 +150,25 @@ function AS.SpawnRebels(count)
 	local cfg = C.AutoSpawn
 	local centers = GetCenters()
 	local spawned = 0
-
 	for _ = 1, count do
-		if CountAutoSpawned() >= cfg.MaxTotal then
-			break
-		end
+		if CountAutoSpawned() >= cfg.MaxTotal then break end
 		local pos = FindSpawnPos(centers)
 		if pos then
 			local npc = AS.CreateRebel(pos)
 			if IsValid(npc) then spawned = spawned + 1 end
 		end
 	end
-
 	return spawned
 end
 
 function AS.Clear()
 	local removed = 0
-
 	for _, npc in ipairs(ents.FindByClass("npc_combine_s")) do
-		if IsValid(npc) and npc.TACTIKILL_Autospawned then
-			npc:Remove()
-			removed = removed + 1
-		end
+		if IsValid(npc) and npc.TACTIKILL_Autospawned then npc:Remove() removed = removed + 1 end
 	end
-
 	for _, npc in ipairs(ents.FindByClass("npc_citizen")) do
-		if IsValid(npc) and npc.TACTIKILL_Autospawned then
-			npc:Remove()
-			removed = removed + 1
-		end
+		if IsValid(npc) and npc.TACTIKILL_Autospawned then npc:Remove() removed = removed + 1 end
 	end
-
 	return removed
 end
 
@@ -232,17 +179,14 @@ concommand.Add("tactikill_autospawn", function(caller, _, args)
 	end
 
 	local function say(msg)
-		if IsValid(caller) then
-			caller:PrintMessage(HUD_PRINTCONSOLE, msg)
-		end
+		if IsValid(caller) then caller:PrintMessage(HUD_PRINTCONSOLE, msg) end
 		print("[TACTIKILL] " .. msg)
 	end
 
 	local kind = (args[1] or "all"):lower()
 
 	if kind == "clear" then
-		local n = AS.Clear()
-		say("Cleared " .. n .. " auto-spawned NPCs")
+		say("Cleared " .. AS.Clear() .. " auto-spawned NPCs")
 		return
 	end
 
@@ -253,19 +197,17 @@ concommand.Add("tactikill_autospawn", function(caller, _, args)
 		combine = AS.SpawnCombine(cfg.CombineCount)
 	elseif kind == "rebels" then
 		if not cfg.RebelsEnabled then
-			say("Rebels are disabled in config (AutoSpawn.RebelsEnabled = false)")
+			say("Rebels are disabled in config")
 			return
 		end
 		rebels = AS.SpawnRebels(cfg.RebelCount)
 	elseif kind == "all" or kind == "random" then
 		combine = AS.SpawnCombine(cfg.CombineCount)
-		if cfg.RebelsEnabled then
-			rebels = AS.SpawnRebels(cfg.RebelCount)
-		end
+		if cfg.RebelsEnabled then rebels = AS.SpawnRebels(cfg.RebelCount) end
 	else
 		say("Usage: tactikill_autospawn [all|combine|rebels|clear]")
 		return
 	end
 
 	say("Auto-spawn: " .. combine .. " combine, " .. rebels .. " rebels")
-end, nil, "Auto-spawn NPCs on the map (admin)")
+end, nil, "Auto-spawn NPCs (admin)")
