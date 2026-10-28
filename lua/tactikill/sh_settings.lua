@@ -26,6 +26,7 @@ local G_PRANKS = "Player ranks"
 local G_LOGS, G_GEN = "Style logs", "Rules, session and admin"
 local G_EVENTS = "Random events"
 local G_DEATH = "Death screen"
+local G_AUTOSPAWN = "Auto-spawn NPCs"
 
 add({ "KillScore" },              "int", 0, 100000, G_SCORE, "Normal kill score")
 add({ "HeadshotMultiplier" },     "num", 1, 20,     G_SCORE, "Headshot multiplier")
@@ -113,6 +114,15 @@ add({ "Events", "Airdrop", "AmmoAmount" },   "int", 1, 10000, G_EVENTS, "Ammo am
 add({ "Events", "Airdrop", "HealthAmount" }, "int", 1, 1000,  G_EVENTS, "Health amount in airdrop")
 add({ "Events", "Airdrop", "ArtyEnabled" }, "bool", nil, nil, G_EVENTS, "Allow artillery designator in airdrop")
 add({ "Events", "Airdrop", "ArtyChance" },  "num", 0, 1,     G_EVENTS, "Artillery chance per airdrop", 2)
+
+add({ "AutoSpawn", "CombineCount" },        "int", 0, 100,  G_AUTOSPAWN, "Combine count")
+add({ "AutoSpawn", "RebelCount" },          "int", 0, 100,  G_AUTOSPAWN, "Rebel count")
+add({ "AutoSpawn", "RebelsEnabled" },       "bool", nil, nil, G_AUTOSPAWN, "Spawn rebels (otherwise only combine)")
+add({ "AutoSpawn", "Radius" },              "num", 500, 10000, G_AUTOSPAWN, "Spawn radius (units)", 0)
+add({ "AutoSpawn", "MinPlayerDistance" },   "num", 100, 3000, G_AUTOSPAWN, "Min distance from player", 0)
+add({ "AutoSpawn", "MinNpcDistance" },      "num", 30, 500,   G_AUTOSPAWN, "Min distance between NPCs", 0)
+add({ "AutoSpawn", "MaxTotal" },            "int", 10, 200,   G_AUTOSPAWN, "Max total auto-spawned NPCs")
+add({ "AutoSpawn", "RebelsHostileToPlayer" }, "bool", nil, nil, G_AUTOSPAWN, "Rebels attack the player")
 
 add({ "DeathScreen", "Enabled" },  "bool", nil, nil, G_DEATH, "Enable death screen")
 add({ "DeathScreen", "Duration" }, "num", 1, 30, G_DEATH, "Death screen duration (s)", 1)

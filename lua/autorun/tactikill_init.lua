@@ -39,6 +39,7 @@ if SERVER then
 	include("tactikill/sv_settings.lua")
 	include("tactikill/sv_combat.lua")
 	include("tactikill/sv_events.lua")
+    include("tactikill/sv_autospawn.lua")
 	include("tactikill/sv_deathscreen.lua")
 	include("tactikill/sv_sounds.lua")
 	include("tactikill/sv_persistence.lua")

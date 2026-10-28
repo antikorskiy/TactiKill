@@ -188,6 +188,20 @@ C.Events = {
 	},
 }
 
+C.AutoSpawn = {
+	CombineCount      = 20,
+	RebelCount        = 15,
+	RebelsEnabled     = false,
+	Radius            = 3500,
+	MinPlayerDistance = 400,
+	MinNpcDistance    = 120,
+	MaxAttempts       = 40,
+	MaxTotal          = 60,
+	CombineSkill      = "3",
+	RebelSkill        = "2",
+	RebelsHostileToPlayer = true,
+}
+
 C.PlayerRanks = {
 	{ min = 0,     name = "Silver I",                          symbol = ">", count = 1 },
 	{ min = 1,     name = "Silver II",                         symbol = ">", count = 2 },
@@ -367,6 +381,20 @@ function TK.ValidateConfig()
 	C.Events.MinPlayers    = int(C.Events.MinPlayers, 1, 0, 64)
 	C.Events.CheckInterval = num(C.Events.CheckInterval, 75, 15, 3600)
 	C.Events.Chance        = num(C.Events.Chance, 0.45, 0, 1)
+
+	if not istable(C.AutoSpawn) then C.AutoSpawn = {} end
+	local AS = C.AutoSpawn
+	AS.CombineCount        = int(AS.CombineCount, 20, 0, 100)
+	AS.RebelCount          = int(AS.RebelCount, 15, 0, 100)
+	AS.RebelsEnabled       = bool(AS.RebelsEnabled, false)
+	AS.Radius              = num(AS.Radius, 3500, 500, 10000)
+	AS.MinPlayerDistance   = num(AS.MinPlayerDistance, 400, 100, 3000)
+	AS.MinNpcDistance      = num(AS.MinNpcDistance, 120, 30, 500)
+	AS.MaxAttempts         = int(AS.MaxAttempts, 40, 10, 100)
+	AS.MaxTotal            = int(AS.MaxTotal, 60, 10, 200)
+	AS.CombineSkill        = str(AS.CombineSkill, "3")
+	AS.RebelSkill          = str(AS.RebelSkill, "2")
+	AS.RebelsHostileToPlayer = bool(AS.RebelsHostileToPlayer, true)
 
 	if not istable(C.Events.Bombardment) then C.Events.Bombardment = {} end
 	local B = C.Events.Bombardment
