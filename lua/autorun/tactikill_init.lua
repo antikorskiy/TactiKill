@@ -19,6 +19,7 @@ if SERVER then
 
 	AddCSLuaFile("tactikill/sh_config.lua")
 	AddCSLuaFile("tactikill/sh_settings.lua")
+	AddCSLuaFile("tactikill/sh_achievements.lua")
 	AddCSLuaFile("tactikill/cl_settings.lua")
 	AddCSLuaFile("tactikill/cl_hud.lua")
 	AddCSLuaFile("tactikill/cl_scoreboard.lua")
@@ -26,13 +27,15 @@ if SERVER then
 	AddCSLuaFile("tactikill/cl_events.lua")
 	AddCSLuaFile("tactikill/cl_deathscreen.lua")
 	AddCSLuaFile("tactikill/cl_sounds.lua")
+	AddCSLuaFile("tactikill/cl_achievements.lua")
 
 	AddCSLuaFile("weapons/tactikill_artillery.lua")
 	AddCSLuaFile("weapons/tactikill_artillery_admin.lua")
 	
+	include("tactikill/sh_achievements.lua")
 	include("tactikill/sh_config.lua")
 	include("tactikill/sh_settings.lua")
-
+	include("tactikill/sv_achievements.lua")
 	include("tactikill/sv_timer.lua")
 	include("tactikill/sv_combo.lua")
 	include("tactikill/sv_tools.lua")
@@ -44,8 +47,11 @@ if SERVER then
 	include("tactikill/sv_sounds.lua")
 	include("tactikill/sv_persistence.lua")
 else
+
 	include("tactikill/sh_config.lua")
 	include("tactikill/sh_settings.lua")
+	include("tactikill/sh_achievements.lua")
+	include("tactikill/cl_achievements.lua")
 	include("tactikill/cl_settings.lua")
 	include("tactikill/cl_hud.lua")
 	include("tactikill/cl_scoreboard.lua")

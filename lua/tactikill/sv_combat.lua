@@ -3,7 +3,6 @@ local C  = TK.Config
 local Combo = TK.Combo
 
 local LastHit   = setmetatable({}, { __mode = "k" })
-local PendingHG = setmetatable({}, { __mode = "k" })
 local Counted   = setmetatable({}, { __mode = "k" })
 
 local RECORD_MAX_AGE = 0.05
@@ -56,16 +55,25 @@ local function ResolveKiller(attacker, inflictor)
 	return ply, viaProp or IsPropClass(attacker) or IsPropClass(inflictor)
 end
 
-local function StoreHitgroup(victim, hitgroup, dmg)
-	if not IsTrackedVictim(victim) then return end
-	local p = PendingHG[victim]
-	if not p then p = {}; PendingHG[victim] = p end
-	p.hg = hitgroup
-	p.time = CurTime()
-	p.attacker = dmg:GetAttacker()
+hook.Add("EntityTakeDamage", "TACTIKILL_TrackDamage", function(ent, dmg)
+	if not IsTrackedVictim(ent) then return end
 
+	local now = CurTime()
 	local attacker = dmg:GetAttacker()
-	if IsValid(attacker) and attacker:IsPlayer() and attacker ~= victim then
+	local hitgroup = dmg:GetHitGroup()
+
+	local rec = {
+		time      = now,
+		attacker  = attacker,
+		inflictor = dmg:GetInflictor(),
+		hp        = ent:Health(),
+		prev      = LastHit[ent],
+		hg        = hitgroup,
+	}
+	LastHit[ent] = rec
+
+	-- Hit-accuracy и hitgroup-статистика для стрелка
+	if IsValid(attacker) and attacker:IsPlayer() and attacker ~= ent then
 		local st = TK.Combo.Get(attacker)
 		if st then
 			st.hits = (st.hits or 0) + 1
@@ -74,26 +82,15 @@ local function StoreHitgroup(victim, hitgroup, dmg)
 			st.hgCounts[cat] = (st.hgCounts[cat] or 0) + 1
 		end
 	end
-end
 
-hook.Add("ScaleNPCDamage",    "TACTIKILL_HG_NPC",    StoreHitgroup)
-hook.Add("ScalePlayerDamage", "TACTIKILL_HG_PLAYER", StoreHitgroup)
-
-hook.Add("EntityTakeDamage", "TACTIKILL_TrackDamage", function(ent, dmg)
-	if not IsTrackedVictim(ent) then return end
-
-	local now = CurTime()
-	local attacker = dmg:GetAttacker()
-	local rec = { time = now, attacker = attacker, inflictor = dmg:GetInflictor(),
-		hp = ent:Health(), prev = LastHit[ent] }
-
-	local p = PendingHG[ent]
-	if p and p.time == now and p.attacker == attacker then
-		rec.hg = p.hg
+	-- Perfect streak сбрасывается только реальным уроном (не падением)
+	if ent:IsPlayer() and IsValid(attacker) then
+		local d = dmg:GetDamage()
+		if d and d > 0 and not (dmg:IsDamageType(DMG_FALL)) then
+			local st = TK.Combo.Get(ent)
+			st.perfectKills = 0
+		end
 	end
-	if p then p.time = -1 end
-
-	LastHit[ent] = rec
 end)
 
 hook.Add("PostEntityTakeDamage", "TACTIKILL_PostDamage", function(ent, dmg, took)
@@ -270,6 +267,65 @@ function TK.ProcessKill(victim, attacker, inflictor)
 		killer:Nick(), tostring(victim), total, st.streak, st.rank,
 		newPlayerRank, wepClass, tostring(headshot))
 
+	local hp    = killer:Health()
+	local maxHp = math.max(killer:GetMaxHealth(), 1)
+	local deathsAtKill = st.deathsInRow or 0
+
+	-- Headshot chain
+	if headshot then
+		st.headshotChain = (st.headshotChain or 0) + 1
+		if st.headshotChain > (st.bestHeadshotChain or 0) then
+			st.bestHeadshotChain = st.headshotChain
+		end
+	else
+		st.headshotChain = 0
+	end
+
+	-- Low HP (Phoenix)
+	if hp <= 1 then
+		st.lowHpKills = (st.lowHpKills or 0) + 1
+		st.lowHpChain = (st.lowHpChain or 0) + 1
+	else
+		st.lowHpChain = 0
+	end
+
+	-- Full HP kills (Iron Wall)
+	if hp >= maxHp then
+		st.fullHpKills = (st.fullHpKills or 0) + 1
+	end
+
+	-- Perfect streak (no damage since last death)
+	st.perfectKills = (st.perfectKills or 0) + 1
+	if st.perfectKills > (st.bestPerfectStreak or 0) then
+		st.bestPerfectStreak = st.perfectKills
+	end
+
+	-- Weapon chain (unique weapons in a row)
+	if wepClass ~= st.lastWeapon then
+		if not st.weaponChainSet then st.weaponChainSet = {} end
+		st.weaponChainSet[wepClass] = true
+		local uniq = 0
+		for _ in pairs(st.weaponChainSet) do uniq = uniq + 1 end
+		st.weaponChainUnique = uniq
+	end
+	st.lastWeapon = wepClass
+
+	-- Successful kill resets deathsInRow
+	st.deathsInRow = 0
+
+	if TK.Achievements then
+		TK.Achievements.Check(killer, {
+			kind             = "kill",
+			style            = style,
+			step             = step,
+			hp               = hp,
+			maxHp            = maxHp,
+			isHeadshot       = headshot,
+			weaponClass      = wepClass,
+			deathsInRowAtKill = deathsAtKill,
+		})
+	end
+
 	Combo.Send(killer, logs)
 	LastHit[victim] = nil
 end
@@ -289,11 +345,9 @@ end)
 hook.Add("PlayerSpawn", "TACTIKILL_Respawn", function(ply)
 	Counted[ply] = nil
 	LastHit[ply] = nil
-	PendingHG[ply] = nil
 end)
 
 hook.Add("EntityRemoved", "TACTIKILL_Cleanup", function(ent)
 	if Counted[ent] then Counted[ent] = nil end
 	if LastHit[ent] then LastHit[ent] = nil end
-	if PendingHG[ent] then PendingHG[ent] = nil end
 end)

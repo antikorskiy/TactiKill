@@ -202,6 +202,12 @@ C.AutoSpawn = {
 	RebelsHostileToPlayer = true,
 }
 
+C.Achievements = {
+	Enabled      = true,
+	Bonus        = 0,
+	SoundEnabled = true,
+}
+
 C.PlayerRanks = {
 	{ min = 0,     name = "Silver I",                          symbol = ">", count = 1 },
 	{ min = 1,     name = "Silver II",                         symbol = ">", count = 2 },
@@ -381,6 +387,11 @@ function TK.ValidateConfig()
 	C.Events.MinPlayers    = int(C.Events.MinPlayers, 1, 0, 64)
 	C.Events.CheckInterval = num(C.Events.CheckInterval, 75, 15, 3600)
 	C.Events.Chance        = num(C.Events.Chance, 0.45, 0, 1)
+
+	if not istable(C.Achievements) then C.Achievements = {} end
+	C.Achievements.Enabled      = bool(C.Achievements.Enabled, true)
+	C.Achievements.Bonus        = int(C.Achievements.Bonus, 0, 0, 100000)
+	C.Achievements.SoundEnabled = bool(C.Achievements.SoundEnabled, true)
 
 	if not istable(C.AutoSpawn) then C.AutoSpawn = {} end
 	local AS = C.AutoSpawn

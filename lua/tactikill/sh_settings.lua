@@ -27,6 +27,7 @@ local G_LOGS, G_GEN = "Style logs", "Rules, session and admin"
 local G_EVENTS = "Random events"
 local G_DEATH = "Death screen"
 local G_AUTOSPAWN = "Auto-spawn NPCs"
+local G_ACH = "Achievements"
 
 add({ "KillScore" },              "int", 0, 100000, G_SCORE, "Normal kill score")
 add({ "HeadshotMultiplier" },     "num", 1, 20,     G_SCORE, "Headshot multiplier")
@@ -128,6 +129,10 @@ add({ "DeathScreen", "Enabled" },  "bool", nil, nil, G_DEATH, "Enable death scre
 add({ "DeathScreen", "Duration" }, "num", 1, 30, G_DEATH, "Death screen duration (s)", 1)
 add({ "DeathScreen", "FadeIn" },   "num", 0.1, 3, G_DEATH, "Fade-in duration (s)", 2)
 add({ "DeathScreen", "FadeOut" },  "num", 0.1, 3, G_DEATH, "Fade-out duration (s)", 2)
+
+add({ "Achievements", "Enabled" },      "bool", nil, nil, G_ACH, "Achievements enabled")
+add({ "Achievements", "Bonus" },        "int", 0, 100000, G_ACH, "Score bonus per achievement")
+add({ "Achievements", "SoundEnabled" }, "bool", nil, nil, G_ACH, "Unlock sound enabled")
 
 add({ "CountPlayerKills" },        "bool", nil, nil, G_GEN, "Count player kills (PvP)")
 add({ "CountFriendlyNPCs" },       "bool", nil, nil, G_GEN, "Count friendly NPCs")

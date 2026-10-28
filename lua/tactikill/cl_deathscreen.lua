@@ -123,4 +123,3 @@ local function DrawDeathScreen()
 end
 
 hook.Add("HUDPaint", "TACTIKILL_DeathScreen_HUD", DrawDeathScreen)
-hook.Add("PostRender", "TACTIKILL_DeathScreen_Post", DrawDeathScreen)

@@ -7,6 +7,9 @@ local P = TK.Persistence
 local available = false
 local dirty = {}
 
+local hasTrials = false
+local hasAch = false
+
 local function InitDB()
 	if not sql or not sql.Query then
 		print("[TACTIKILL] SQL not available - progress will not be saved")
@@ -33,6 +36,27 @@ local function InitDB()
 		hg_counts TEXT DEFAULT '{}',
 		last_seen INTEGER DEFAULT 0
 	)]])
+
+	local cols = sql.Query("PRAGMA table_info(tactikill_players)") or {}
+
+	for _, col in ipairs(cols) do
+		if col.name == "achievements" then hasAch = true break end
+	end
+
+	if not hasAch then
+		sql.Query("ALTER TABLE tactikill_players ADD COLUMN achievements TEXT DEFAULT '{}'")
+		print("[TACTIKILL] Added 'achievements' column to tactikill_players")
+	end
+
+	local cols2 = sql.Query("PRAGMA table_info(tactikill_players)") or {}
+	for _, col in ipairs(cols2) do
+		if col.name == "trials" then hasTrials = true break end
+	end
+
+	if not hasTrials then
+		sql.Query("ALTER TABLE tactikill_players ADD COLUMN trials TEXT DEFAULT '{}'")
+		print("[TACTIKILL] Added 'trials' column to tactikill_players")
+	end
 
 	if sql.LastError() then
 		print("[TACTIKILL] SQL init failed: " .. sql.LastError())
@@ -90,12 +114,18 @@ function P.Load(ply)
 	st.favWeaponKills  = math.max(tonumber(row.fav_weapon_kills) or 0, 0)
 	st.weaponKills     = FromJson(row.weapon_kills)
 	st.hgCounts        = FromJson(row.hg_counts)
-
+	st.achievements = FromJson(row.achievements) or {}
 	st.streak = 0
 	st.rank = 0
 	st.expire = 0
 	st.mkCount = 0
 	st.mkLast = 0
+
+	local trials = FromJson(row.trials) or {}
+	st.bestHeadshotChain = math.max(tonumber(trials.bestHeadshotChain) or 0, 0)
+	st.bestPerfectStreak = math.max(tonumber(trials.bestPerfectStreak) or 0, 0)
+	st.lowHpKills        = math.max(tonumber(trials.lowHpKills) or 0, 0)
+	st.fullHpKills       = math.max(tonumber(trials.fullHpKills) or 0, 0)
 
 	TK.Debug("loaded progress for %s: %d kills, %d score, %d deaths",
 		ply:Nick(), st.kills, st.score, st.deaths)
@@ -118,8 +148,8 @@ function P.Save(ply)
 		REPLACE INTO tactikill_players (
 			steamid, kills, deaths, score, headshots, multikills, best_streak,
 			shots, hits, distance_sum, distance_count, distance_max, distance_min,
-			weapon_kills, fav_weapon, fav_weapon_kills, hg_counts, last_seen
-		) VALUES (%s, %d, %d, %d, %d, %d, %d, %d, %d, %f, %d, %f, %f, %s, %s, %d, %s, %d)
+			weapon_kills, fav_weapon, fav_weapon_kills, hg_counts, achievements, trials, last_seen
+		) VALUES (%s, %d, %d, %d, %d, %d, %d, %d, %d, %f, %d, %f, %f, %s, %s, %d, %s, %s, %s, %d))
 	]],
 		sql.SQLStr(sid),
 		math.floor(st.kills or 0),
@@ -138,6 +168,13 @@ function P.Save(ply)
 		sql.SQLStr(st.favWeapon or ""),
 		math.floor(st.favWeaponKills or 0),
 		sql.SQLStr(ToJson(st.hgCounts)),
+		sql.SQLStr(ToJson(st.achievements or {})),
+		sql.SQLStr(ToJson({
+			bestHeadshotChain = st.bestHeadshotChain or 0,
+			bestPerfectStreak = st.bestPerfectStreak or 0,
+			lowHpKills        = st.lowHpKills or 0,
+			fullHpKills       = st.fullHpKills or 0,
+		})),
 		os.time()
 	)
 

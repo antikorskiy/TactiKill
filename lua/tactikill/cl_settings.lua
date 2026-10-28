@@ -34,6 +34,11 @@ local DEFAULTS = {
 	tactikill_hud_hp                = "1",
 	tactikill_hud_lowhp_threshold   = "30",
 	tactikill_scoreboard            = "1",
+    tactikill_hud_lowhp_threshold   = "30",
+    tactikill_scoreboard            = "1",
+    tactikill_ach_banner            = "1",   
+    tactikill_ach_sound             = "1",
+}
 }
 
 function TK.BuildSettings(panel)

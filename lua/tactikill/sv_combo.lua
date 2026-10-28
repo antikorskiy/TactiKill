@@ -24,6 +24,15 @@ function Combo.Get(ply)
 			distanceSum = 0, distanceCount = 0, distanceMax = 0, distanceMin = 0,
 			weaponKills = {}, favWeapon = nil, favWeaponKills = 0,
 			shots = 0, hits = 0, hgCounts = {},
+			achievements = {},
+
+			headshotChain = 0, bestHeadshotChain = 0,
+			perfectKills = 0,  bestPerfectStreak = 0,
+			lowHpKills = 0,    lowHpChain = 0,
+			fullHpKills = 0,
+			deathsInRow = 0,
+			lastWeapon = "",
+			weaponChainSet = {}, weaponChainUnique = 0,
 		}
 		States[ply] = st
 	end
@@ -259,7 +268,14 @@ end
 function Combo.OnDeath(ply)
 	local st = Combo.Get(ply)
 	st.deaths = (st.deaths or 0) + 1
-
+	st.deathsInRow   = (st.deathsInRow or 0) + 1
+	st.perfectKills  = 0
+	st.headshotChain = 0
+	st.lowHpChain    = 0
+	st.lastWeapon    = ""
+	st.weaponChainSet    = {}
+	st.weaponChainUnique = 0
+	
 	if not C.DeathResetsCombo then
 		if TK.Persistence then TK.Persistence.MarkDirty(ply) end
 		Combo.Send(ply)
@@ -279,6 +295,7 @@ function Combo.OnDeath(ply)
 		logs = { { text = C.Labels.ComboLostDeath, bonus = 0, kind = 3 } }
 	end
 	TK.Debug("combo reset on death: %s", tostring(ply))
+	if TK.Achievements then TK.Achievements.Check(ply, { kind = "death" }) end
 	Combo.Send(ply, logs)
 
 	if TK.Persistence then TK.Persistence.MarkDirty(ply) end
