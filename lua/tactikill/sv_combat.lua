@@ -55,25 +55,20 @@ local function ResolveKiller(attacker, inflictor)
 	return ply, viaProp or IsPropClass(attacker) or IsPropClass(inflictor)
 end
 
-hook.Add("EntityTakeDamage", "TACTIKILL_TrackDamage", function(ent, dmg)
-	if not IsTrackedVictim(ent) then return end
+----------------------------------------------------------------------------
+-- hitgroup: только через ScaleNPCDamage / ScalePlayerDamage
+-- (CTakeDamageInfo не имеет Lua-метода GetHitGroup)
+----------------------------------------------------------------------------
+local function StoreHitgroup(victim, hitgroup, dmg)
+	if not IsTrackedVictim(victim) then return end
 
-	local now = CurTime()
+	local rec = LastHit[victim]
+	if rec then
+		rec.hg = hitgroup
+	end
+
 	local attacker = dmg:GetAttacker()
-	local hitgroup = dmg:GetHitGroup()
-
-	local rec = {
-		time      = now,
-		attacker  = attacker,
-		inflictor = dmg:GetInflictor(),
-		hp        = ent:Health(),
-		prev      = LastHit[ent],
-		hg        = hitgroup,
-	}
-	LastHit[ent] = rec
-
-	-- Hit-accuracy и hitgroup-статистика для стрелка
-	if IsValid(attacker) and attacker:IsPlayer() and attacker ~= ent then
+	if IsValid(attacker) and attacker:IsPlayer() and attacker ~= victim then
 		local st = TK.Combo.Get(attacker)
 		if st then
 			st.hits = (st.hits or 0) + 1
@@ -82,11 +77,31 @@ hook.Add("EntityTakeDamage", "TACTIKILL_TrackDamage", function(ent, dmg)
 			st.hgCounts[cat] = (st.hgCounts[cat] or 0) + 1
 		end
 	end
+end
+
+hook.Add("ScaleNPCDamage",    "TACTIKILL_HG_NPC",    StoreHitgroup)
+hook.Add("ScalePlayerDamage", "TACTIKILL_HG_PLAYER", StoreHitgroup)
+
+hook.Add("EntityTakeDamage", "TACTIKILL_TrackDamage", function(ent, dmg)
+	if not IsTrackedVictim(ent) then return end
+
+	local now = CurTime()
+	local attacker = dmg:GetAttacker()
+
+	local rec = {
+		time      = now,
+		attacker  = attacker,
+		inflictor = dmg:GetInflictor(),
+		hp        = ent:Health(),
+		prev      = LastHit[ent],
+		hg        = nil, -- заполнится в Scale*Damage
+	}
+	LastHit[ent] = rec
 
 	-- Perfect streak сбрасывается только реальным уроном (не падением)
 	if ent:IsPlayer() and IsValid(attacker) then
 		local d = dmg:GetDamage()
-		if d and d > 0 and not (dmg:IsDamageType(DMG_FALL)) then
+		if d and d > 0 and not dmg:IsDamageType(DMG_FALL) then
 			local st = TK.Combo.Get(ent)
 			st.perfectKills = 0
 		end
@@ -271,7 +286,6 @@ function TK.ProcessKill(victim, attacker, inflictor)
 	local maxHp = math.max(killer:GetMaxHealth(), 1)
 	local deathsAtKill = st.deathsInRow or 0
 
-	-- Headshot chain
 	if headshot then
 		st.headshotChain = (st.headshotChain or 0) + 1
 		if st.headshotChain > (st.bestHeadshotChain or 0) then
@@ -281,7 +295,6 @@ function TK.ProcessKill(victim, attacker, inflictor)
 		st.headshotChain = 0
 	end
 
-	-- Low HP (Phoenix)
 	if hp <= 1 then
 		st.lowHpKills = (st.lowHpKills or 0) + 1
 		st.lowHpChain = (st.lowHpChain or 0) + 1
@@ -289,18 +302,15 @@ function TK.ProcessKill(victim, attacker, inflictor)
 		st.lowHpChain = 0
 	end
 
-	-- Full HP kills (Iron Wall)
 	if hp >= maxHp then
 		st.fullHpKills = (st.fullHpKills or 0) + 1
 	end
 
-	-- Perfect streak (no damage since last death)
 	st.perfectKills = (st.perfectKills or 0) + 1
 	if st.perfectKills > (st.bestPerfectStreak or 0) then
 		st.bestPerfectStreak = st.perfectKills
 	end
 
-	-- Weapon chain (unique weapons in a row)
 	if wepClass ~= st.lastWeapon then
 		if not st.weaponChainSet then st.weaponChainSet = {} end
 		st.weaponChainSet[wepClass] = true
@@ -310,20 +320,25 @@ function TK.ProcessKill(victim, attacker, inflictor)
 	end
 	st.lastWeapon = wepClass
 
-	-- Successful kill resets deathsInRow
 	st.deathsInRow = 0
 
+	local killEvent = {
+		kind             = "kill",
+		style            = style,
+		step             = step,
+		hp               = hp,
+		maxHp            = maxHp,
+		isHeadshot       = headshot,
+		weaponClass      = wepClass,
+		deathsInRowAtKill = deathsAtKill,
+	}
+
 	if TK.Achievements then
-		TK.Achievements.Check(killer, {
-			kind             = "kill",
-			style            = style,
-			step             = step,
-			hp               = hp,
-			maxHp            = maxHp,
-			isHeadshot       = headshot,
-			weaponClass      = wepClass,
-			deathsInRowAtKill = deathsAtKill,
-		})
+		TK.Achievements.Check(killer, killEvent)
+	end
+	
+	if TK.Contracts and TK.Contracts.OnKill then
+		TK.Contracts.OnKill(killer, killEvent)
 	end
 
 	Combo.Send(killer, logs)

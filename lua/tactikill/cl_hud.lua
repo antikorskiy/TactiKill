@@ -11,12 +11,14 @@ local cvSnd        = CreateClientConVar("tactikill_sound_rankup", "1", true, fal
 local cvKD         = CreateClientConVar("tactikill_hud_kd", "1", true, false, "")
 local cvHp         = CreateClientConVar("tactikill_hud_hp", "1", true, false, "")
 local cvLowHpThr   = CreateClientConVar("tactikill_hud_lowhp_threshold", "30", true, false, "", 5, 100)
+local cvAgent      = CreateClientConVar("tactikill_hud_agent", "1", true, false, "")
 
 local H = {
 	kills = 0, deaths = 0, score = 0, streak = 0, rank = 0, playerRank = 1, multikill = 0,
 	expireAt = 0, duration = 0,
 	timerRunning = false, timerElapsed = 0, timerRecv = 0,
 	logs = {}, banner = nil, playerBanner = nil, firstUpdate = true,
+	agentId = "",
 }
 TK.HUD = H
 
@@ -99,6 +101,7 @@ net.Receive("TACTIKILL_Update", function()
 	local remaining = net.ReadFloat()
 	H.duration    = net.ReadFloat()
 	H.expireAt    = now + remaining
+	H.agentId     = net.ReadString()
 
 	local n = net.ReadUInt(5)
 	for _ = 1, n do
@@ -168,6 +171,37 @@ local function Truncate(str, font, maxW)
 		if surface.GetTextSize(s) <= maxW then return s end
 	end
 	return str
+end
+
+local function PaintAgent(x, y, w, s, now)
+	if not cvAgent:GetBool() then return 0 end
+	if not H.agentId or H.agentId == "" then return 0 end
+
+	local pad = math.floor(10 * s)
+	local px  = x + pad + math.floor(4 * s)
+	local rx  = x + w - pad
+	local h   = math.floor(74 * s)
+
+	DrawPanel(x, y, w, h, COL_AMBER, s)
+
+	local lp    = LocalPlayer()
+	local pname = IsValid(lp) and lp:Nick() or "unknown"
+
+	local row1Y = y + pad + math.floor(10 * s)
+	Text("AGENT", "TACTIKILL_Small", px, row1Y, COL_DIM)
+	Text(H.agentId, "TACTIKILL_Med", rx, row1Y, COL_AMBER, TEXT_ALIGN_RIGHT)
+
+	local lineY = row1Y + math.floor(15 * s)
+	surface.SetDrawColor(COL_BORDER.r, COL_BORDER.g, COL_BORDER.b, 120)
+	surface.DrawRect(px, lineY, rx - px, math.max(1, math.floor(s)))
+
+	local row2Y = row1Y + math.floor(28 * s)
+	Text("NAME", "TACTIKILL_Small", px, row2Y, COL_DIM)
+	local nameW = rx - px - math.floor(48 * s)
+	Text(Truncate(pname, "TACTIKILL_Small", nameW),
+		"TACTIKILL_Small", rx, row2Y, COL_TEXT, TEXT_ALIGN_RIGHT)
+
+	return h
 end
 
 local function PaintPlayerRank(x, y, w, s, now)
@@ -426,8 +460,11 @@ hook.Add("HUDPaint", "TACTIKILL_HUD", function()
 	local y = margin
 	local gap = math.floor(10 * s)
 
-	local hRank = PaintPlayerRank(x, y, w, s, now)
-	local y2 = y + hRank + (hRank > 0 and gap or 0)
+	local hAgent = PaintAgent(x, y, w, s, now)
+	local yA = y + hAgent + (hAgent > 0 and gap or 0)
+
+	local hRank = PaintPlayerRank(x, yA, w, s, now)
+	local y2 = yA + hRank + (hRank > 0 and gap or 0)
 	local h1 = PaintStats(x, y2, w, s, now)
 	PaintCombo(x, y2 + h1 + gap, w, s, now)
 

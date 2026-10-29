@@ -74,13 +74,13 @@ add("hs_10k",   "Cranial Nightmare","10,000 headshots", "H10K",   function(s) re
 -- =========================================================================
 -- MULTIKILL
 -- =========================================================================
-add("multi_2",   "Double Kill",   "Get a DOUBLE KILL",   "2x",  function(s) return (s.multikills or 0) >= 1 end,        "Multikill")
-add("multi_3",   "Triple Kill",   "Get a TRIPLE KILL",   "3x",  function(s, e) return e and e.step and e.step >= 3 end, "Multikill")
-add("multi_4",   "Squad Wipe",    "Get a SQUAD WIPE",    "4x",  function(s, e) return e and e.step and e.step >= 4 end, "Multikill")
-add("multi_5",   "Mass Kill",     "Get a MASS KILL",     "5x",  function(s, e) return e and e.step and e.step >= 5 end, "Multikill")
-add("multi_6",   "Bloodbath",     "Get a BLOODBATH",     "6x",  function(s, e) return e and e.step and e.step >= 6 end, "Multikill")
-add("multi_50",  "Multi Master",  "50 multikills total", "M50", function(s) return (s.multikills or 0) >= 50 end,       "Multikill")
-add("multi_500", "Carnage",       "500 multikills",      "M500",function(s) return (s.multikills or 0) >= 500 end,      "Multikill")
+add("multi_2",   "Double Kill",   "Get a DOUBLE KILL",   "2x",  function(s) return (s.bestMultikill or 0) >= 2 end,  "Multikill")
+add("multi_3",   "Triple Kill",   "Get a TRIPLE KILL",   "3x",  function(s) return (s.bestMultikill or 0) >= 3 end,  "Multikill")
+add("multi_4",   "Squad Wipe",    "Get a SQUAD WIPE",    "4x",  function(s) return (s.bestMultikill or 0) >= 4 end,  "Multikill")
+add("multi_5",   "Mass Kill",     "Get a MASS KILL",     "5x",  function(s) return (s.bestMultikill or 0) >= 5 end,  "Multikill")
+add("multi_6",   "Bloodbath",     "Get a BLOODBATH",     "6x",  function(s) return (s.bestMultikill or 0) >= 6 end,  "Multikill")
+add("multi_50",  "Multi Master",  "50 multikills total", "M50", function(s) return (s.multikills or 0) >= 50 end,    "Multikill")
+add("multi_500", "Carnage",       "500 multikills",      "M500",function(s) return (s.multikills or 0) >= 500 end,   "Multikill")
 
 -- =========================================================================
 -- STREAKS
@@ -102,49 +102,49 @@ add("style_slide", "Slider",       "Slide kill",            "SLD", function(s, e
 add("style_slow",  "Bullet Time",  "Slow-mo kill",          "SLW", function(s, e) return e and e.style and e.style.SlowMo end,     "Style")
 add("style_pb",    "Point Blank",  "Point blank kill",      "PB",  function(s, e) return e and e.style and e.style.PointBlank end, "Style")
 add("style_lr",    "Long Shot",    "Long range kill",       "LR",  function(s, e) return e and e.style and e.style.LongRange end,  "Style")
-add("style_prop",  "Prop Killer",  "Prop kill",             "PRP", function(s, e) return e and e.style and e.style.Prop end,      "Style")
+add("style_prop",  "Prop Killer",  "Prop kill",             "PRP", function(s, e) return e and e.style and e.style.Prop end,       "Style")
 
 -- =========================================================================
 -- WEAPONS (Only HL2)
 -- =========================================================================
-add("wep_pistol",   "Pistol Master",    "50 pistol kills",     "PST", function(s) return wk(s, "weapon_pistol") >= 50 end,       "Weapons")
-add("wep_smg1",     "SMG Master",       "100 SMG kills",       "SMG", function(s) return wk(s, "weapon_smg1") >= 100 end,        "Weapons")
-add("wep_ar2",      "AR2 Master",       "100 AR2 kills",       "AR2", function(s) return wk(s, "weapon_ar2") >= 100 end,         "Weapons")
-add("wep_shotgun",  "Shotgun Master",   "100 shotgun kills",   "SHG", function(s) return wk(s, "weapon_shotgun") >= 100 end,     "Weapons")
-add("wep_crowbar",  "Crowbar Hero",     "10 crowbar kills",    "CRB", function(s) return wk(s, "weapon_crowbar") >= 10 end,      "Weapons")
-add("wep_357",      "Revolver Fan",     "30 .357 kills",       "357", function(s) return wk(s, "weapon_357") >= 30 end,          "Weapons")
-add("wep_crossbow", "Silent Killer",    "25 crossbow kills",   "CRS", function(s) return wk(s, "weapon_crossbow") >= 25 end,     "Weapons")
-add("wep_rpg",      "Rocket Man",       "25 RPG kills",        "RPG", function(s) return wk(s, "weapon_rpg") >= 25 end,          "Weapons")
-add("wep_gravgun",  "Zero Point Energy", "5 gravity gun kills","GRA", function(s) return wk(s, "weapon_physcannon") >= 5 end,    "Weapons")
-add("wep_grenade",  "Frag Out",         "10 grenade kills",    "GRN", function(s) return wk(s, "weapon_frag") >= 10 end,         "Weapons")
+add("wep_pistol",   "Pistol Master",    "50 pistol kills",     "PST", function(s) return wk(s, "weapon_pistol") >= 50 end,       						"Weapons")
+add("wep_smg1",     "SMG Master",       "100 SMG kills",       "SMG", function(s) return wk(s, "weapon_smg1") >= 100 end,        						"Weapons")
+add("wep_ar2",      "AR2 Master",       "100 AR2 kills",       "AR2", function(s) return wk(s, "weapon_ar2") >= 100 end,         						"Weapons")
+add("wep_shotgun",  "Shotgun Master",   "100 shotgun kills",   "SHG", function(s) return wk(s, "weapon_shotgun") >= 100 end,     						"Weapons")
+add("wep_crowbar",  "Crowbar Hero",     "10 crowbar kills",    "CRB", function(s) return wk(s, "weapon_crowbar") >= 10 end,      						"Weapons")
+add("wep_357",      "Revolver Fan",     "30 .357 kills",       "357", function(s) return wk(s, "weapon_357") >= 30 end,          						"Weapons")
+add("wep_crossbow", "Silent Killer",    "25 crossbow kills",   "CRS", function(s) return wk(s, "weapon_crossbow") >= 25 end,     						"Weapons")
+add("wep_rpg",      "Rocket Man",       "25 RPG kills",        "RPG", function(s) return wk(s, "weapon_rpg") >= 25 end,         					 	"Weapons")
+add("wep_gravgun",  "Zero Point Energy", "5 gravity gun kills","GRA", function(s) return wk(s, "weapon_physcannon") >= 5 end,    						"Weapons")
+add("wep_grenade",  "Frag Out",         "10 grenade kills",    "GRN", function(s) return wk(s, "weapon_frag") >= 10 end,         						"Weapons")
 add("wep_melee",    "Hands On",         "25 melee kills",      "MEL", function(s) return wk(s, "weapon_stunstick") + wk(s, "weapon_crowbar") >= 25 end, "Weapons")
 
 -- =========================================================================
 -- RANKS (player rank progression)
 -- =========================================================================
-add("rank_silver",   "Silver",              "Reach Silver IV",         "S4",  function(s) return GetPlayerRankIdx(s) >= 4 end,   "Ranks")
-add("rank_nova",     "Gold Nova",           "Reach Gold Nova I",       "GN1", function(s) return GetPlayerRankIdx(s) >= 11 end,  "Ranks")
-add("rank_mg",       "Master Guardian",     "Reach Master Guardian I","MG1", function(s) return GetPlayerRankIdx(s) >= 19 end,  "Ranks")
-add("rank_eagle",    "Legendary Eagle",     "Reach Legendary Eagle",   "LE",  function(s) return GetPlayerRankIdx(s) >= 27 end,  "Ranks")
-add("rank_supreme",  "Supreme Master",      "Reach SMFC I",            "SM",  function(s) return GetPlayerRankIdx(s) >= 33 end,  "Ranks")
-add("rank_global",   "Global Elite",        "Reach Global Elite",      "GE",  function(s) return GetPlayerRankIdx(s) >= 38 end,  "Ranks")
-add("rank_legend",   "World Legend",        "Reach World Legend",      "WL",  function(s) return GetPlayerRankIdx(s) >= 41 end,  "Ranks")
-add("rank_immortal", "Immortal",            "Reach Immortal",          "IM",  function(s) return GetPlayerRankIdx(s) >= 46 end,  "Ranks")
-add("rank_mythic",   "Mythic",              "Reach Mythic",            "MY",  function(s) return GetPlayerRankIdx(s) >= 50 end,  "Ranks")
-add("rank_apex",     "Apex",                "Reach Apex",              "AX",  function(s) return GetPlayerRankIdx(s) >= 55 end,  "Ranks")
+add("rank_silver",   "Silver",              "Reach Silver IV",         "S4",  function(s) return GetPlayerRankIdx(s) >= 4 end,   			"Ranks")
+add("rank_nova",     "Gold Nova",           "Reach Gold Nova I",       "GN1", function(s) return GetPlayerRankIdx(s) >= 11 end,  			"Ranks")
+add("rank_mg",       "Master Guardian",     "Reach Master Guardian I","MG1", function(s) return GetPlayerRankIdx(s) >= 19 end,   			"Ranks")
+add("rank_eagle",    "Legendary Eagle",     "Reach Legendary Eagle",   "LE",  function(s) return GetPlayerRankIdx(s) >= 27 end,  			"Ranks")
+add("rank_supreme",  "Supreme Master",      "Reach SMFC I",            "SM",  function(s) return GetPlayerRankIdx(s) >= 33 end,  			"Ranks")
+add("rank_global",   "Global Elite",        "Reach Global Elite",      "GE",  function(s) return GetPlayerRankIdx(s) >= 38 end,  			"Ranks")
+add("rank_legend",   "World Legend",        "Reach World Legend",      "WL",  function(s) return GetPlayerRankIdx(s) >= 41 end,  			"Ranks")
+add("rank_immortal", "Immortal",            "Reach Immortal",          "IM",  function(s) return GetPlayerRankIdx(s) >= 46 end,  			"Ranks")
+add("rank_mythic",   "Mythic",              "Reach Mythic",            "MY",  function(s) return GetPlayerRankIdx(s) >= 50 end,  			"Ranks")
+add("rank_apex",     "Apex",                "Reach Apex",              "AX",  function(s) return GetPlayerRankIdx(s) >= 55 end,  			"Ranks")
 add("rank_tklegend", "TactiKill Legend",    "Max player rank",         "TK",  function(s) return GetPlayerRankIdx(s) >= #C.PlayerRanks end, "Ranks")
 
 -- =========================================================================
 -- COMBO RANKS
 -- =========================================================================
-add("combo_spree",     "Spree",           "Reach KILLING SPREE",  "KS",  function(s) return (s.rank or 0) >= 1 end,           "Combo")
-add("combo_dominating","Dominating",      "Reach DOMINATING",     "DOM", function(s) return (s.rank or 0) >= 2 end,           "Combo")
-add("combo_legendary", "Legendary Streak","Reach LEGENDARY",      "LEG", function(s) return (s.rank or 0) >= 6 end,           "Combo")
-add("combo_savage",    "Savage",          "Reach SAVAGE",         "SVG", function(s) return (s.rank or 0) >= 12 end,          "Combo")
-add("combo_immortal",  "Immortal Streak", "Reach IMMORTAL",       "IMS", function(s) return (s.rank or 0) >= 17 end,          "Combo")
-add("combo_devas",     "Devastating",     "Reach DEVASTATING",    "DEV", function(s) return (s.rank or 0) >= 20 end,          "Combo")
-add("combo_apoc",      "Apocalypse",      "Reach APOCALYPSE",     "APC", function(s) return (s.rank or 0) >= 24 end,          "Combo")
-add("combo_legend",    "Living Legend",   "Reach LEGEND",         "LGD", function(s) return (s.rank or 0) >= #C.Ranks end,    "Combo")
+add("combo_spree",     "Spree",           "Reach KILLING SPREE",  "KS",  function(s) return (s.bestRank or 0) >= 1 end,        "Combo")
+add("combo_dominating","Dominating",      "Reach DOMINATING",     "DOM", function(s) return (s.bestRank or 0) >= 2 end,        "Combo")
+add("combo_legendary", "Legendary Streak","Reach LEGENDARY",      "LEG", function(s) return (s.bestRank or 0) >= 6 end,        "Combo")
+add("combo_savage",    "Savage",          "Reach SAVAGE",         "SVG", function(s) return (s.bestRank or 0) >= 12 end,       "Combo")
+add("combo_immortal",  "Immortal Streak", "Reach IMMORTAL",       "IMS", function(s) return (s.bestRank or 0) >= 17 end,       "Combo")
+add("combo_devas",     "Devastating",     "Reach DEVASTATING",    "DEV", function(s) return (s.bestRank or 0) >= 20 end,       "Combo")
+add("combo_apoc",      "Apocalypse",      "Reach APOCALYPSE",     "APC", function(s) return (s.bestRank or 0) >= 24 end,       "Combo")
+add("combo_legend",    "Living Legend",   "Reach LEGEND",         "LGD", function(s) return (s.bestRank or 0) >= #C.Ranks end, "Combo")
 
 -- =========================================================================
 -- DEATHS
@@ -157,35 +157,35 @@ add("death_1k",   "Frequent Flyer",  "Die 1,000 times",  "D1K",    function(s) r
 -- =========================================================================
 -- ACCURACY / SHOTS
 -- =========================================================================
-add("shots_1",       "First Shot",      "Fire your first shot",     "SH1",    function(s) return (s.shots or 0) >= 1 end,             "Accuracy")
-add("shots_100",     "Trigger Happy",   "Fire 100 shots",           "SH100",  function(s) return (s.shots or 0) >= 100 end,           "Accuracy")
-add("shots_10k",     "Lead Sprayer",    "Fire 10,000 shots",        "SH10K",  function(s) return (s.shots or 0) >= 10000 end,         "Accuracy")
-add("hits_1k",       "Marksman",        "Land 1,000 hits",          "HT1K",   function(s) return (s.hits or 0) >= 1000 end,           "Accuracy")
-add("acc_30",        "Deadly Aim",      "30% accuracy (500+ shots)","A30",    function(s) return (s.shots or 0) >= 500 and acc(s) >= 0.30 end, "Accuracy")
+add("shots_1",       "First Shot",      "Fire your first shot",     "SH1",    function(s) return (s.shots or 0) >= 1 end,             			"Accuracy")
+add("shots_100",     "Trigger Happy",   "Fire 100 shots",           "SH100",  function(s) return (s.shots or 0) >= 100 end,          		    "Accuracy")
+add("shots_10k",     "Lead Sprayer",    "Fire 10,000 shots",        "SH10K",  function(s) return (s.shots or 0) >= 10000 end,         			"Accuracy")
+add("hits_1k",       "Marksman",        "Land 1,000 hits",          "HT1K",   function(s) return (s.hits or 0) >= 1000 end,           			"Accuracy")
+add("acc_30",        "Deadly Aim",      "30% accuracy (500+ shots)","A30",    function(s) return (s.shots or 0) >= 500 and acc(s) >= 0.30 end,  "Accuracy")
 add("acc_50",        "Eagle Eye",       "50% accuracy (1000+ shots)","A50",   function(s) return (s.shots or 0) >= 1000 and acc(s) >= 0.50 end, "Accuracy")
 add("acc_70",        "Surgical",        "70% accuracy (1000+ shots)","A70",   function(s) return (s.shots or 0) >= 1000 and acc(s) >= 0.70 end, "Accuracy")
 
 -- =========================================================================
 -- DISTANCE
 -- =========================================================================
-add("dist_500",   "Medium Range",  "Kill at 500+ units",  "D500",  function(s) return (s.distanceMax or 0) >= 500 end,   "Distance")
-add("dist_1k",    "Long Range",    "Kill at 1000+ units", "D1K",   function(s) return (s.distanceMax or 0) >= 1000 end,  "Distance")
-add("dist_2k",    "Sniper Shot",   "Kill at 2000+ units", "D2K",   function(s) return (s.distanceMax or 0) >= 2000 end,  "Distance")
-add("dist_5k",    "Cross-Map",     "Kill at 5000+ units", "D5K",   function(s) return (s.distanceMax or 0) >= 5000 end,  "Distance")
+add("dist_500",   "Medium Range",  "Kill at 500+ units",  "D500",  function(s) return (s.distanceMax or 0) >= 500 end,                                            "Distance")
+add("dist_1k",    "Long Range",    "Kill at 1000+ units", "D1K",   function(s) return (s.distanceMax or 0) >= 1000 end,                                           "Distance")
+add("dist_2k",    "Sniper Shot",   "Kill at 2000+ units", "D2K",   function(s) return (s.distanceMax or 0) >= 2000 end,                                           "Distance")
+add("dist_5k",    "Cross-Map",     "Kill at 5000+ units", "D5K",   function(s) return (s.distanceMax or 0) >= 5000 end,                                           "Distance")
 add("dist_avg",   "Steady Hand",   "Average kill distance 1500+ (50+ kills)", "DAVG", function(s) return (s.distanceCount or 0) >= 50 and avgDist(s) >= 1500 end, "Distance")
 
 -- =========================================================================
 -- HITBOX
 -- =========================================================================
-add("hg_head_100",  "Head Hunter",   "100 hits on head",    "HH",    function(s) return hg(s, "head") >= 100 end,   "Hitbox")
-add("hg_torso_500", "Center Mass",   "500 hits on torso",   "TM",    function(s) return hg(s, "torso") >= 500 end,  "Hitbox")
+add("hg_head_100",  "Head Hunter",   "100 hits on head",    "HH",    function(s) return hg(s, "head") >= 100 end,                                                 "Hitbox")
+add("hg_torso_500", "Center Mass",   "500 hits on torso",   "TM",    function(s) return hg(s, "torso") >= 500 end,                                                "Hitbox")
 add("hg_limbs",     "Limb Shooter",  "100 limb hits",       "LM",    function(s) return hg(s, "larm") + hg(s, "rarm") + hg(s, "lleg") + hg(s, "rleg") >= 100 end, "Hitbox")
 
 -- =========================================================================
 -- SINGLE LIFE / SPECIAL
 -- =========================================================================
-add("lucky",       "Lucky",         "Survive a 5 killstreak",  "LCK", function(s) return (s.streak or 0) >= 5 end,       "Special")
-add("pentakill",   "Penta Kill",    "Reach LEGENDARY+++",      "PK",  function(s) return (s.rank or 0) >= 9 end,         "Special")
+add("lucky",       "Lucky",         "Survive a 5 killstreak",  "LCK", function(s) return (s.streak or 0) >= 5 end,                                   "Special")
+add("pentakill",   "Penta Kill",    "Reach LEGENDARY+++",      "PK",  function(s) return (s.bestRank or 0) >= 9 end,                                 "Special")
 add("veteran",     "Veteran",       "10k kills + 5k headshots","VET", function(s) return (s.kills or 0) >= 10000 and (s.headshots or 0) >= 5000 end, "Special")
 
 -- =========================================================================
@@ -201,7 +201,7 @@ add("trial_pb_hs",          "Point Blank Headshot", "Point blank headshot kill",
 add("trial_lr_hs",          "Sniper Legend",        "Long range headshot kill (1500+ units)",     "LRH", function(s, e) return e and e.isHeadshot and e.style and e.style.LongRange end, "Trials")
 add("trial_executioner",    "Executioner",          "5 headshot kills in a row",                  "EXE", function(s) return (s.bestHeadshotChain or 0) >= 5 end, "Trials")
 add("trial_hs_master",      "Headshot Master",      "10 headshot kills in a row",                 "HSM", function(s) return (s.bestHeadshotChain or 0) >= 10 end, "Trials")
-add("trial_speed",          "Speed Demon",          "5 kills within 10 seconds",                  "SPD", function(s, e) return e and e.step and e.step >= 5 end, "Trials")
+add("trial_speed",          "Speed Demon",          "5 kills within 10 seconds",                  "SPD", function(s) return (s.bestMultikill or 0) >= 5 end,   "Trials")
 add("trial_triple_threat",  "Triple Threat",        "3 different weapons in a row",               "TT",  function(s) return (s.weaponChainUnique or 0) >= 3 end, "Trials")
 add("trial_quad_threat",    "Quad Threat",          "4 different weapons in a row",               "QT",  function(s) return (s.weaponChainUnique or 0) >= 4 end, "Trials")
 add("trial_comeback",       "Comeback Kid",         "Kill after 10 deaths in a row",              "CB",  function(s, e) return e and e.kind == "kill" and e.deathsInRowAtKill and e.deathsInRowAtKill >= 10 end, "Trials")

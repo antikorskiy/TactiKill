@@ -13,6 +13,7 @@ A.Banner      = A.Banner or nil
 A.LastRequest = A.LastRequest or 0
 
 local function PlayUnlockSound()
+	if not (C.Achievements and C.Achievements.SoundEnabled) then return end
 	if not cvSound:GetBool() then return end
 	surface.PlaySound("ui/achievement_earned.wav")
 end

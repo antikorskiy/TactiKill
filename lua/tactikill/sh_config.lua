@@ -1,6 +1,6 @@
 TACTIKILL = TACTIKILL or {}
 local TK = TACTIKILL
-TK.Version = "1.4.1"
+TK.Version = "1.4.2"
 
 local C = {}
 TK.Config = C
@@ -250,8 +250,8 @@ C.PlayerRanks = {
 	{ min = 1600,  name = "Global Elite II",                   symbol = "#", count = 2 },
 	{ min = 1770,  name = "Global Elite III",                  symbol = "#", count = 3 },
 	{ min = 1960,  name = "Global Elite Master",               symbol = "#", count = 4, stars = 1 },
-	{ min = 2160,  name = "World Legend",                      symbol = "~", count = 1 },
-	{ min = 2400,  name = "Continental Legend",                symbol = "~", count = 2 },
+	{ min = 2160,  name = "Continental Legend",                symbol = "~", count = 1 },
+	{ min = 2400,  name = "World Legend",                      symbol = "~", count = 2 },
 	{ min = 2660,  name = "Celestial Legend",                  symbol = "~", count = 3 },
 	{ min = 2960,  name = "Imperial Legend",                   symbol = "~", count = 4 },
 	{ min = 3300,  name = "Immortal",                          symbol = "~", count = 4, brackets = 1 },

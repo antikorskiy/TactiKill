@@ -8,7 +8,7 @@ util.AddNetworkString("TACTIKILL_RequestAchievements")
 
 local SyncCooldown = setmetatable({}, { __mode = "k" })
 
-function A.Give(ply, id)
+function A.Give(ply, id, silent)
 	if not IsValid(ply) or ply:IsBot() then return false end
 	if not C.Achievements.Enabled then return false end
 	local def = A.ById[id]
@@ -20,14 +20,16 @@ function A.Give(ply, id)
 
 	st.achievements[id] = true
 
-	net.Start("TACTIKILL_Achievement")
-		net.WriteString(def.id)
-		net.WriteString(def.name)
-		net.WriteString(def.desc)
-		net.WriteString(def.icon)
-	net.Send(ply)
+	if not silent then
+		net.Start("TACTIKILL_Achievement")
+			net.WriteString(def.id)
+			net.WriteString(def.name)
+			net.WriteString(def.desc)
+			net.WriteString(def.icon)
+		net.Send(ply)
 
-	print("[TACTIKILL] Achievement unlocked: " .. ply:Nick() .. " -> " .. id)
+		print("[TACTIKILL] Achievement unlocked: " .. ply:Nick() .. " -> " .. id)
+	end
 
 	if C.Achievements.Bonus > 0 then
 		st.score = math.min(st.score + C.Achievements.Bonus, 2147483647)
@@ -38,7 +40,7 @@ function A.Give(ply, id)
 	return true
 end
 
-function A.Check(ply, extra)
+function A.Check(ply, extra, silent)
 	if not IsValid(ply) or ply:IsBot() then return end
 	if not C.Achievements.Enabled then return end
 
@@ -49,7 +51,7 @@ function A.Check(ply, extra)
 		if not st.achievements[def.id] then
 			local ok, res = pcall(def.check, st, extra)
 			if ok and res then
-				A.Give(ply, def.id)
+				A.Give(ply, def.id, silent)
 			end
 		end
 	end
@@ -61,9 +63,7 @@ function A.Sync(ply)
 	if not st.achievements then st.achievements = {} end
 
 	local ids = {}
-	for id, _ in pairs(st.achievements) do
-		ids[#ids + 1] = id
-	end
+	for id in pairs(st.achievements) do ids[#ids + 1] = id end
 
 	net.Start("TACTIKILL_AchievementsSync")
 		net.WriteUInt(#ids, 10)
@@ -111,6 +111,11 @@ concommand.Add("tactikill_reset_achievements", function(caller, _, args)
 
 	local st = TK.Combo.Get(target)
 	st.achievements = {}
+
+	-- Silent re-check so that earned achievements don't fire as a flood
+	-- next time the player kills something.
+	A.Check(target, { kind = "reset" }, true)
+
 	if TK.Persistence then TK.Persistence.Save(target) end
 	A.Sync(target)
 	TK.Combo.Send(target)

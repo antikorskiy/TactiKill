@@ -128,6 +128,10 @@ local function FireBombardStrike(pos)
 	FireBombardStrikeAt(pos, E.Bombardment.ExplosionRadius, E.Bombardment.ExplosionDamage)
 end
 
+local function ResetEventBusy()
+	eventBusy = false
+end
+
 local function DoBombardment()
 	if eventBusy then return end
 	local players = player.GetAll()
@@ -144,9 +148,7 @@ local function DoBombardment()
 		local center = GetRandomPlayer()
 		if center then
 			local pos = GetGroundPos(center:GetPos(), E.Bombardment.BeamRadius)
-			if pos then
-				beams[#beams + 1] = pos
-			end
+			if pos then beams[#beams + 1] = pos end
 		end
 	end
 
@@ -159,15 +161,15 @@ local function DoBombardment()
 	net.Start("TACTIKILL_Event_Bombard_Start")
 		net.WriteUInt(#beams, 8)
 		for _, pos in ipairs(beams) do
-			net.WriteFloat(pos.x)
-			net.WriteFloat(pos.y)
-			net.WriteFloat(pos.z)
+			net.WriteFloat(pos.x); net.WriteFloat(pos.y); net.WriteFloat(pos.z)
 		end
 	net.Broadcast()
 
-	print("[TACTIKILL SERVER] Bombardment start: " .. #beams .. " beams")
-
 	local preDelay = (#beams - 1) * E.Bombardment.BeamDelay + E.Bombardment.ChargeTime
+	local totalTime = preDelay + #beams * E.Bombardment.FireInterval + E.Bombardment.SoundLeadTime + 5
+
+	-- Safety: whatever happens, unlock the event after totalTime seconds.
+	timer.Create("TACTIKILL_EventSafeB", totalTime, 1, ResetEventBusy)
 
 	timer.Simple(preDelay, function()
 		for i, pos in ipairs(beams) do
@@ -176,9 +178,7 @@ local function DoBombardment()
 				timer.Simple(E.Bombardment.SoundLeadTime, function()
 					net.Start("TACTIKILL_Event_Bombard_Strike")
 						net.WriteUInt(i, 8)
-						net.WriteFloat(pos.x)
-						net.WriteFloat(pos.y)
-						net.WriteFloat(pos.z)
+						net.WriteFloat(pos.x); net.WriteFloat(pos.y); net.WriteFloat(pos.z)
 					net.Broadcast()
 					FireBombardStrike(pos)
 				end)
@@ -187,7 +187,6 @@ local function DoBombardment()
 		timer.Simple(#beams * E.Bombardment.FireInterval + E.Bombardment.SoundLeadTime + 2, function()
 			net.Start("TACTIKILL_Event_Bombard_End")
 			net.Broadcast()
-			eventBusy = false
 		end)
 	end)
 end
@@ -272,23 +271,19 @@ local function DoAirdrop()
 	local fallTime = E.Airdrop.FallTime
 	local startZ = pos.z + 800
 
+	-- Safety unlock: airdrop animation + 10s extra.
+	timer.Create("TACTIKILL_EventSafeA", fallTime + 30, 1, ResetEventBusy)
+
 	net.Start("TACTIKILL_Event_Airdrop_Start")
-		net.WriteFloat(pos.x)
-		net.WriteFloat(pos.y)
-		net.WriteFloat(pos.z)
+		net.WriteFloat(pos.x); net.WriteFloat(pos.y); net.WriteFloat(pos.z)
 		net.WriteFloat(fallTime)
 	net.Broadcast()
-
-	print("[TACTIKILL SERVER] Airdrop start at " .. math.floor(pos.x) .. "," ..
-		math.floor(pos.y) .. "," .. math.floor(pos.z) .. " in " .. fallTime .. "s")
 
 	timer.Simple(fallTime, function()
 		PlayWorldSound(E.Airdrop.SoundPath, pos + Vector(0, 0, 500))
 
 		net.Start("TACTIKILL_Event_Airdrop_Landing")
-			net.WriteFloat(pos.x)
-			net.WriteFloat(pos.y)
-			net.WriteFloat(pos.z)
+			net.WriteFloat(pos.x); net.WriteFloat(pos.y); net.WriteFloat(pos.z)
 		net.Broadcast()
 
 		local box = ents.Create("prop_physics")
@@ -303,10 +298,9 @@ local function DoAirdrop()
 		box:SetCollisionGroup(COLLISION_GROUP_INTERACTIVE)
 		box:SetPos(Vector(pos.x, pos.y, startZ))
 
-		box.TACTIKILL_Airdrop  = true
-		box.TACTIKILL_Pending  = true
-		box.TACTIKILL_Opened   = false
-
+		box.TACTIKILL_Airdrop = true
+		box.TACTIKILL_Pending = true
+		box.TACTIKILL_Opened  = false
 		box:SetNWBool("TACTIKILL_Airdrop", true)
 		box:SetHealth(999999)
 		box:DrawShadow(false)
@@ -329,8 +323,6 @@ local function DoAirdrop()
 				box:SetNWBool("TACTIKILL_Landed", true)
 				timer.Remove(timerName)
 				sound.Play("physics/wood/wood_box_impact_hard3.wav", box:GetPos(), 80, 100, 1)
-				print("[TACTIKILL SERVER] Airdrop landed at " .. math.floor(pos.x) .. "," ..
-					math.floor(pos.y) .. "," .. math.floor(targetZ))
 				return
 			end
 			box:SetPos(Vector(pos.x, pos.y, currentZ))
@@ -345,11 +337,9 @@ local function DoAirdrop()
 			local c = box:GetPos()
 			local r = box:BoundingRadius() + 40
 			for _, ply in ipairs(player.GetAll()) do
-				if IsValid(ply) and ply:Alive() then
-					if ply:GetPos():DistToSqr(c) <= r * r then
-						OpenAirdrop(box, ply)
-						return
-					end
+				if IsValid(ply) and ply:Alive() and ply:GetPos():DistToSqr(c) <= r * r then
+					OpenAirdrop(box, ply)
+					return
 				end
 			end
 		end)
@@ -360,8 +350,6 @@ local function DoAirdrop()
 			hook.Remove("EntityRemoved", "TACTIKILL_AirdropRemoved_" .. idx)
 			timer.Remove(timerName)
 		end)
-
-		eventBusy = false
 	end)
 end
 

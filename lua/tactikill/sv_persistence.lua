@@ -5,10 +5,65 @@ TK.Persistence = {}
 local P = TK.Persistence
 
 local available = false
-local dirty = {}
+local dirty     = setmetatable({}, { __mode = "k" })
 
-local hasTrials = false
-local hasAch = false
+local ANON_SID64    = "76561197960265728"
+local ANON_SID      = "STEAM_0:0:0"
+local PENDING_SID   = "STEAM_ID_PENDING"
+
+local function SafeNum(v, def)
+	v = tonumber(v)
+	if not v or v ~= v then return def or 0 end
+	if v == math.huge or v == -math.huge then return def or 0 end
+	return v
+end
+
+local function SafeInt(v, def)
+	return math.floor(SafeNum(v, def))
+end
+
+local function SafeJson(tbl)
+	if not istable(tbl) then return "{}" end
+	local ok, res = pcall(util.TableToJSON, tbl, false)
+	if not ok or not isstring(res) or res == "" then return "{}" end
+	return res
+end
+
+local function FromJson(str)
+	if not isstring(str) or str == "" then return {} end
+	local t = util.JSONToTable(str)
+	return istable(t) and t or {}
+end
+
+local function HashKey(s)
+	if util and util.md5 then return util.md5(s) end
+	local h = 5381
+	for i = 1, #s do h = ((h * 33) + s:byte(i)) % 4294967296 end
+	return string.format("%08X", h)
+end
+
+local function GetSid(ply)
+	local sid64 = ply:SteamID64()
+	if sid64 and sid64 ~= "" and sid64 ~= "0" and sid64 ~= ANON_SID64 then
+		return sid64
+	end
+
+	local sid = ply:SteamID()
+	if sid and sid ~= ""
+		and sid ~= ANON_SID
+		and sid ~= PENDING_SID
+		and sid ~= "UNKNOWN"
+	then
+		return sid
+	end
+
+	local ip = ply:IPAddress() or ""
+	if ip ~= "" then ip = string.match(ip, "^([^:]+)") or ip end
+	if ip == "" or ip == "loopback" or ip == "localhost" or ip == "127.0.0.1" then
+		ip = "0"
+	end
+	return "H:" .. HashKey(ip .. "|" .. string.lower(ply:Nick() or ""))
+end
 
 local function InitDB()
 	if not sql or not sql.Query then
@@ -38,25 +93,24 @@ local function InitDB()
 	)]])
 
 	local cols = sql.Query("PRAGMA table_info(tactikill_players)") or {}
-
+	local hasAch, hasTrials = false, false
 	for _, col in ipairs(cols) do
-		if col.name == "achievements" then hasAch = true break end
+		if col.name == "achievements" then hasAch = true end
+		if col.name == "trials"       then hasTrials = true end
 	end
-
 	if not hasAch then
 		sql.Query("ALTER TABLE tactikill_players ADD COLUMN achievements TEXT DEFAULT '{}'")
-		print("[TACTIKILL] Added 'achievements' column to tactikill_players")
+		print("[TACTIKILL] Added 'achievements' column")
 	end
-
-	local cols2 = sql.Query("PRAGMA table_info(tactikill_players)") or {}
-	for _, col in ipairs(cols2) do
-		if col.name == "trials" then hasTrials = true break end
-	end
-
 	if not hasTrials then
 		sql.Query("ALTER TABLE tactikill_players ADD COLUMN trials TEXT DEFAULT '{}'")
-		print("[TACTIKILL] Added 'trials' column to tactikill_players")
+		print("[TACTIKILL] Added 'trials' column")
 	end
+
+	sql.Query([[
+		DELETE FROM tactikill_players
+		WHERE steamid IN ('0','','STEAM_0:0:0','STEAM_ID_PENDING','UNKNOWN','76561197960265728')
+	]])
 
 	if sql.LastError() then
 		print("[TACTIKILL] SQL init failed: " .. sql.LastError())
@@ -65,22 +119,6 @@ local function InitDB()
 
 	available = true
 	print("[TACTIKILL] SQLite ready")
-end
-
-local function ToJson(tbl)
-	return util.TableToJSON(tbl or {}, false) or "{}"
-end
-
-local function FromJson(str)
-	if not str or str == "" then return {} end
-	local t = util.JSONToTable(str)
-	return istable(t) and t or {}
-end
-
-local function GetSid(ply)
-	local sid = ply:SteamID64()
-	if not sid or sid == "" then sid = ply:SteamID() end
-	return sid
 end
 
 function P.Load(ply)
@@ -98,41 +136,66 @@ function P.Load(ply)
 
 	local st = TK.Combo.Get(ply)
 
-	st.kills           = math.max(tonumber(row.kills) or 0, 0)
-	st.deaths          = math.max(tonumber(row.deaths) or 0, 0)
-	st.score           = math.max(tonumber(row.score) or 0, 0)
-	st.headshots       = math.max(tonumber(row.headshots) or 0, 0)
-	st.multikills      = math.max(tonumber(row.multikills) or 0, 0)
-	st.bestStreak      = math.max(tonumber(row.best_streak) or 0, 0)
-	st.shots           = math.max(tonumber(row.shots) or 0, 0)
-	st.hits            = math.max(tonumber(row.hits) or 0, 0)
-	st.distanceSum     = tonumber(row.distance_sum) or 0
-	st.distanceCount   = math.max(tonumber(row.distance_count) or 0, 0)
-	st.distanceMax     = tonumber(row.distance_max) or 0
-	st.distanceMin     = tonumber(row.distance_min) or 0
-	st.favWeapon       = (row.fav_weapon ~= "" and row.fav_weapon) or nil
-	st.favWeaponKills  = math.max(tonumber(row.fav_weapon_kills) or 0, 0)
-	st.weaponKills     = FromJson(row.weapon_kills)
-	st.hgCounts        = FromJson(row.hg_counts)
-	st.achievements = FromJson(row.achievements) or {}
-	st.streak = 0
-	st.rank = 0
-	st.expire = 0
-	st.mkCount = 0
-	st.mkLast = 0
+	st.kills          = math.max(SafeInt(row.kills), 0)
+	st.deaths         = math.max(SafeInt(row.deaths), 0)
+	st.score          = math.max(SafeInt(row.score), 0)
+	st.headshots      = math.max(SafeInt(row.headshots), 0)
+	st.multikills     = math.max(SafeInt(row.multikills), 0)
+	st.bestStreak     = math.max(SafeInt(row.best_streak), 0)
+	st.shots          = math.max(SafeInt(row.shots), 0)
+	st.hits           = math.max(SafeInt(row.hits), 0)
+	st.distanceSum    = math.max(SafeNum(row.distance_sum), 0)
+	st.distanceCount  = math.max(SafeInt(row.distance_count), 0)
+	st.distanceMax    = math.max(SafeNum(row.distance_max), 0)
+	st.distanceMin    = math.max(SafeNum(row.distance_min), 0)
+	st.favWeapon      = (isstring(row.fav_weapon) and row.fav_weapon ~= "") and row.fav_weapon or nil
+	st.favWeaponKills = math.max(SafeInt(row.fav_weapon_kills), 0)
+	st.weaponKills    = FromJson(row.weapon_kills)
+	st.hgCounts       = FromJson(row.hg_counts)
+	st.achievements   = FromJson(row.achievements)
 
-	local trials = FromJson(row.trials) or {}
-	st.bestHeadshotChain = math.max(tonumber(trials.bestHeadshotChain) or 0, 0)
-	st.bestPerfectStreak = math.max(tonumber(trials.bestPerfectStreak) or 0, 0)
-	st.lowHpKills        = math.max(tonumber(trials.lowHpKills) or 0, 0)
-	st.fullHpKills       = math.max(tonumber(trials.fullHpKills) or 0, 0)
+	st.streak, st.rank, st.expire, st.mkCount, st.mkLast = 0, 0, 0, 0, 0
 
-	TK.Debug("loaded progress for %s: %d kills, %d score, %d deaths",
-		ply:Nick(), st.kills, st.score, st.deaths)
+	local trials = FromJson(row.trials)
+	st.bestHeadshotChain = math.max(SafeInt(trials.bestHeadshotChain), 0)
+	st.bestPerfectStreak = math.max(SafeInt(trials.bestPerfectStreak), 0)
+	st.lowHpKills        = math.max(SafeInt(trials.lowHpKills), 0)
+	st.fullHpKills       = math.max(SafeInt(trials.fullHpKills), 0)
+	st.bestRank          = math.max(SafeInt(trials.bestRank), 0)
+	st.bestMultikill     = math.max(SafeInt(trials.bestMultikill), 0)
 
-	if TK.Combo and TK.Combo.Send then
-		TK.Combo.Send(ply)
+	if isstring(trials.agentId)
+		and string.match(trials.agentId, "^%u%u%u%-%d%d%d%-%u$")
+	then
+		st.agentId = trials.agentId
+	else
+		st.agentId = nil
 	end
+
+	st.contractScore = SafeInt(trials.contractScore)
+
+	if istable(trials.contracts) and istable(trials.contracts.slots) then
+		local slots = {}
+		for _, c in ipairs(trials.contracts.slots) do
+			if istable(c) and isstring(c.templateId) and isstring(c.customerId)
+				and isnumber(c.target) and isnumber(c.progress) and isnumber(c.difficulty)
+			then
+				slots[#slots + 1] = c
+			end
+		end
+		st.contracts = { slots = slots, refreshAt = 0 }
+	else
+		st.contracts = nil
+	end
+
+	TK.Debug("loaded progress for %s (%s): %d kills, %d score",
+		ply:Nick(), sid, st.kills, st.score)
+
+	if TK.Achievements and TK.Achievements.Check then
+		TK.Achievements.Check(ply, { kind = "load" }, true)
+	end
+
+	if TK.Combo and TK.Combo.Send then TK.Combo.Send(ply) end
 end
 
 function P.Save(ply)
@@ -143,58 +206,57 @@ function P.Save(ply)
 	if not sid or sid == "" then return end
 
 	local st = TK.Combo.Get(ply)
+	local fav = isstring(st.favWeapon) and st.favWeapon or ""
 
 	local q = string.format([[
 		REPLACE INTO tactikill_players (
 			steamid, kills, deaths, score, headshots, multikills, best_streak,
 			shots, hits, distance_sum, distance_count, distance_max, distance_min,
-			weapon_kills, fav_weapon, fav_weapon_kills, hg_counts, achievements, trials, last_seen
-		) VALUES (%s, %d, %d, %d, %d, %d, %d, %d, %d, %f, %d, %f, %f, %s, %s, %d, %s, %s, %s, %d))
+			weapon_kills, fav_weapon, fav_weapon_kills, hg_counts,
+			achievements, trials, last_seen
+		) VALUES (%s, %d, %d, %d, %d, %d, %d, %d, %d, %f, %d, %f, %f,
+		          %s, %s, %d, %s, %s, %s, %d)
 	]],
 		sql.SQLStr(sid),
-		math.floor(st.kills or 0),
-		math.floor(st.deaths or 0),
-		math.floor(st.score or 0),
-		math.floor(st.headshots or 0),
-		math.floor(st.multikills or 0),
-		math.floor(st.bestStreak or 0),
-		math.floor(st.shots or 0),
-		math.floor(st.hits or 0),
-		st.distanceSum or 0,
-		math.floor(st.distanceCount or 0),
-		st.distanceMax or 0,
-		st.distanceMin or 0,
-		sql.SQLStr(ToJson(st.weaponKills)),
-		sql.SQLStr(st.favWeapon or ""),
-		math.floor(st.favWeaponKills or 0),
-		sql.SQLStr(ToJson(st.hgCounts)),
-		sql.SQLStr(ToJson(st.achievements or {})),
-		sql.SQLStr(ToJson({
-			bestHeadshotChain = st.bestHeadshotChain or 0,
-			bestPerfectStreak = st.bestPerfectStreak or 0,
-			lowHpKills        = st.lowHpKills or 0,
-			fullHpKills       = st.fullHpKills or 0,
+		SafeInt(st.kills), SafeInt(st.deaths), SafeInt(st.score),
+		SafeInt(st.headshots), SafeInt(st.multikills), SafeInt(st.bestStreak),
+		SafeInt(st.shots), SafeInt(st.hits),
+		SafeNum(st.distanceSum), SafeInt(st.distanceCount),
+		SafeNum(st.distanceMax), SafeNum(st.distanceMin),
+		sql.SQLStr(SafeJson(st.weaponKills)),
+		sql.SQLStr(fav),
+		SafeInt(st.favWeaponKills),
+		sql.SQLStr(SafeJson(st.hgCounts)),
+		sql.SQLStr(SafeJson(st.achievements)),
+		sql.SQLStr(SafeJson({
+			bestHeadshotChain = SafeInt(st.bestHeadshotChain),
+			bestPerfectStreak = SafeInt(st.bestPerfectStreak),
+			lowHpKills        = SafeInt(st.lowHpKills),
+			fullHpKills       = SafeInt(st.fullHpKills),
+			bestRank          = SafeInt(st.bestRank),
+			bestMultikill     = SafeInt(st.bestMultikill),
+			agentId           = isstring(st.agentId) and st.agentId or "",
+			contractScore     = SafeInt(st.contractScore),
+			contracts         = st.contracts or {},
 		})),
-		os.time()
+		SafeInt(os.time())
 	)
 
 	sql.Query(q)
 	if sql.LastError() then
-		print("[TACTIKILL] Save failed for " .. ply:Nick() .. ": " .. sql.LastError())
+		print("[TACTIKILL] Save failed for " .. ply:Nick() .. " (" .. sid .. "): " .. sql.LastError())
+		if C.Debug then print(q) end
 	else
 		TK.Debug("saved progress for %s", ply:Nick())
 	end
-
 	dirty[ply] = nil
 end
 
 function P.Delete(ply)
-	if not available then return end
-	if not IsValid(ply) or ply:IsBot() then return end
+	if not available or not IsValid(ply) or ply:IsBot() then return end
 	local sid = GetSid(ply)
 	if not sid or sid == "" then return end
 	sql.Query("DELETE FROM tactikill_players WHERE steamid = " .. sql.SQLStr(sid))
-	TK.Debug("deleted saved progress for %s", ply:Nick())
 end
 
 function P.MarkDirty(ply)
@@ -208,16 +270,14 @@ end)
 
 timer.Create("TACTIKILL_AutoSave", 45, 0, function()
 	if not available or not C.PersistenceEnabled then return end
-	for ply, _ in pairs(dirty) do
+	for ply in pairs(dirty) do
 		if IsValid(ply) then P.Save(ply) end
 	end
 end)
 
 hook.Add("ShutDown", "TACTIKILL_Persistence_Shutdown", function()
 	if not available or not C.PersistenceEnabled then return end
-	for _, ply in ipairs(player.GetAll()) do
-		P.Save(ply)
-	end
+	for _, ply in ipairs(player.GetAll()) do P.Save(ply) end
 end)
 
 InitDB()

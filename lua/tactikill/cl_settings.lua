@@ -32,13 +32,11 @@ local DEFAULTS = {
 	tactikill_sound_rankup          = "1",
 	tactikill_hud_kd                = "1",
 	tactikill_hud_hp                = "1",
+	tactikill_hud_agent             = "1",
 	tactikill_hud_lowhp_threshold   = "30",
 	tactikill_scoreboard            = "1",
-    tactikill_hud_lowhp_threshold   = "30",
-    tactikill_scoreboard            = "1",
-    tactikill_ach_banner            = "1",   
-    tactikill_ach_sound             = "1",
-}
+	tactikill_ach_banner            = "1",
+	tactikill_ach_sound             = "1",
 }
 
 function TK.BuildSettings(panel)
@@ -50,6 +48,7 @@ function TK.BuildSettings(panel)
 	panel:CheckBox("Show rank progress bar", "tactikill_hud_rank_progress")
 	panel:CheckBox("Show K/D row", "tactikill_hud_kd")
 	panel:CheckBox("Show HEALTH row", "tactikill_hud_hp")
+	panel:CheckBox("Show agent ID dossier", "tactikill_hud_agent")
 	panel:NumSlider("Health warning threshold (%)", "tactikill_hud_lowhp_threshold", 5, 100, 0)
 	panel:NumSlider("Rank banner duration (s)", "tactikill_hud_banner_duration", 0.5, 10, 1)
 	panel:NumSlider("HUD scale", "tactikill_hud_scale", 0.6, 1.6, 2)
