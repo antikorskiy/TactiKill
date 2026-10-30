@@ -112,8 +112,6 @@ concommand.Add("tactikill_reset_achievements", function(caller, _, args)
 	local st = TK.Combo.Get(target)
 	st.achievements = {}
 
-	-- Silent re-check so that earned achievements don't fire as a flood
-	-- next time the player kills something.
 	A.Check(target, { kind = "reset" }, true)
 
 	if TK.Persistence then TK.Persistence.Save(target) end

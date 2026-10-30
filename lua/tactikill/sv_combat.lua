@@ -4,8 +4,10 @@ local Combo = TK.Combo
 
 local LastHit   = setmetatable({}, { __mode = "k" })
 local Counted   = setmetatable({}, { __mode = "k" })
+local PendingHG = setmetatable({}, { __mode = "k" })
 
-local RECORD_MAX_AGE = 0.05
+local RECORD_MAX_AGE = 0.5
+local HG_MAX_AGE     = 0.2
 
 local HG_CATEGORY = {
 	[HITGROUP_HEAD]      = "head",
@@ -55,17 +57,13 @@ local function ResolveKiller(attacker, inflictor)
 	return ply, viaProp or IsPropClass(attacker) or IsPropClass(inflictor)
 end
 
-----------------------------------------------------------------------------
--- hitgroup: только через ScaleNPCDamage / ScalePlayerDamage
--- (CTakeDamageInfo не имеет Lua-метода GetHitGroup)
-----------------------------------------------------------------------------
 local function StoreHitgroup(victim, hitgroup, dmg)
 	if not IsTrackedVictim(victim) then return end
 
+	PendingHG[victim] = { hg = hitgroup, t = CurTime() }
+
 	local rec = LastHit[victim]
-	if rec then
-		rec.hg = hitgroup
-	end
+	if rec then rec.hg = hitgroup end
 
 	local attacker = dmg:GetAttacker()
 	if IsValid(attacker) and attacker:IsPlayer() and attacker ~= victim then
@@ -86,20 +84,24 @@ hook.Add("EntityTakeDamage", "TACTIKILL_TrackDamage", function(ent, dmg)
 	if not IsTrackedVictim(ent) then return end
 
 	local now = CurTime()
-	local attacker = dmg:GetAttacker()
+	local hg  = nil
+	local pending = PendingHG[ent]
+	if pending and (now - pending.t) <= HG_MAX_AGE then
+		hg = pending.hg
+	end
+	PendingHG[ent] = nil
 
 	local rec = {
 		time      = now,
-		attacker  = attacker,
+		attacker  = dmg:GetAttacker(),
 		inflictor = dmg:GetInflictor(),
 		hp        = ent:Health(),
 		prev      = LastHit[ent],
-		hg        = nil, -- заполнится в Scale*Damage
+		hg        = hg,
 	}
 	LastHit[ent] = rec
 
-	-- Perfect streak сбрасывается только реальным уроном (не падением)
-	if ent:IsPlayer() and IsValid(attacker) then
+	if ent:IsPlayer() and IsValid(rec.attacker) then
 		local d = dmg:GetDamage()
 		if d and d > 0 and not dmg:IsDamageType(DMG_FALL) then
 			local st = TK.Combo.Get(ent)
@@ -285,6 +287,7 @@ function TK.ProcessKill(victim, attacker, inflictor)
 	local hp    = killer:Health()
 	local maxHp = math.max(killer:GetMaxHealth(), 1)
 	local deathsAtKill = st.deathsInRow or 0
+	local victimClass = victim:GetClass()
 
 	if headshot then
 		st.headshotChain = (st.headshotChain or 0) + 1
@@ -323,20 +326,21 @@ function TK.ProcessKill(victim, attacker, inflictor)
 	st.deathsInRow = 0
 
 	local killEvent = {
-		kind             = "kill",
-		style            = style,
-		step             = step,
-		hp               = hp,
-		maxHp            = maxHp,
-		isHeadshot       = headshot,
-		weaponClass      = wepClass,
+		kind              = "kill",
+		style             = style,
+		step              = step,
+		hp                = hp,
+		maxHp             = maxHp,
+		isHeadshot        = headshot,
+		weaponClass       = wepClass,
 		deathsInRowAtKill = deathsAtKill,
+		victimClass       = victimClass,
+		victim            = victim,
 	}
 
 	if TK.Achievements then
 		TK.Achievements.Check(killer, killEvent)
 	end
-	
 	if TK.Contracts and TK.Contracts.OnKill then
 		TK.Contracts.OnKill(killer, killEvent)
 	end
@@ -360,9 +364,11 @@ end)
 hook.Add("PlayerSpawn", "TACTIKILL_Respawn", function(ply)
 	Counted[ply] = nil
 	LastHit[ply] = nil
+	PendingHG[ply] = nil
 end)
 
 hook.Add("EntityRemoved", "TACTIKILL_Cleanup", function(ent)
-	if Counted[ent] then Counted[ent] = nil end
-	if LastHit[ent] then LastHit[ent] = nil end
+	if Counted[ent]   then Counted[ent] = nil end
+	if LastHit[ent]   then LastHit[ent] = nil end
+	if PendingHG[ent] then PendingHG[ent] = nil end
 end)

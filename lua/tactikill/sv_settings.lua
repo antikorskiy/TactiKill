@@ -1,12 +1,3 @@
---[[---------------------------------------------------------------------------
-  Project: TactiKill - Combat System
-  tactikill/sv_settings.lua  (SERVER)
-
-  Loads/saves runtime settings (data/tactikill/settings.json), validates admin
-  changes and synchronises them to all clients. Only values that differ from
-  the defaults in sh_config.lua are stored.
------------------------------------------------------------------------------]]
-
 local TK = TACTIKILL
 local C  = TK.Config
 
@@ -20,9 +11,6 @@ local FILE_DIR  = "tactikill"
 local FILE_PATH = "tactikill/settings.json"
 local NextAllowed = setmetatable({}, { __mode = "k" })
 
-----------------------------------------------------------------------------
--- Persistence
-----------------------------------------------------------------------------
 local function Save()
 	local out = {}
 	for _, def in ipairs(TK.SettingsList) do
@@ -39,7 +27,6 @@ local function Save()
 end
 
 local function ScheduleSave()
-	-- one write for a burst of slider changes
 	timer.Create("TACTIKILL_SaveSettings", 1, 1, Save)
 end
 
@@ -63,10 +50,6 @@ local function Load()
 	TK.Debug("settings loaded from %s", FILE_PATH)
 end
 
-----------------------------------------------------------------------------
--- Network
-----------------------------------------------------------------------------
--- defs = list of definitions; ply = nil -> broadcast
 local function Write(defs, ply)
 	net.Start("TACTIKILL_Settings")
 		net.WriteUInt(#defs, 10)
@@ -112,10 +95,10 @@ net.Receive("TACTIKILL_SetSetting", function(_, ply)
 	local ok = TK.ApplySetting(def, TK.ParseValue(def, raw), false)
 	if ok then
 		ScheduleSave()
-		Write({ def }) -- everybody gets the validated value
+		Write({ def })
 		TK.Debug("%s set %s = %s", ply:Nick(), id, tostring(TK.GetSettingValue(def)))
 	else
-		Write({ def }, ply) -- reject: send the real value back so the UI reverts
+		Write({ def }, ply)
 		TK.Notify(ply, "Invalid value for " .. def.label, 1)
 	end
 end)

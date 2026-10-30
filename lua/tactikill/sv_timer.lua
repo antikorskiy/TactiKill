@@ -1,13 +1,3 @@
---[[---------------------------------------------------------------------------
-  Project: TactiKill - Combat System
-  tactikill/sv_timer.lua  (SERVER)
-
-  Per-player session timer. The server stores only timestamps:
-    running = true  -> elapsed = stored + (CurTime() - startedAt)
-    running = false -> elapsed = stored
-  No repeating timers, no Think. Clients get (running, elapsed) on change.
------------------------------------------------------------------------------]]
-
 local TK = TACTIKILL
 
 util.AddNetworkString("TACTIKILL_Timer")
@@ -41,7 +31,6 @@ function T.Send(ply)
 	net.Send(ply)
 end
 
--- Start if stopped. Returns true if the timer is running afterwards.
 function T.Start(ply)
 	local s = T.Get(ply)
 	if not s.running then
@@ -60,15 +49,12 @@ function T.Pause(ply)
 	return false
 end
 
--- Returns the new running state.
 function T.Toggle(ply)
 	local s = T.Get(ply)
 	if s.running then return T.Pause(ply) end
 	return T.Start(ply)
 end
 
--- Sets elapsed to 0. A running timer keeps running (restarts from 0).
--- Never touches kills / score / combo.
 function T.Reset(ply)
 	local s = T.Get(ply)
 	s.elapsed = 0

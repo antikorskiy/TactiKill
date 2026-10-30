@@ -33,7 +33,13 @@ net.Receive("TACTIKILL_Dossier", function()
 	s.contractScore = net.ReadInt(32)
 	s.rank          = net.ReadUInt(8)
 	TK.Dossier.stats = s
-	if IsValid(TK.Dossier.Panel) then TK.BuildDossier(TK.Dossier.CurrentTab) end
+
+	if openPending then
+		openPending = false
+		TK.BuildDossier(TK.Dossier.CurrentTab or "player")
+	elseif IsValid(TK.Dossier.Panel) then
+		TK.BuildDossier(TK.Dossier.CurrentTab)
+	end
 end)
 
 local openPending = false
@@ -43,15 +49,21 @@ function TK.RequestDossier()
 	net.SendToServer()
 end
 
-----------------------------------------------------------------------------
--- Page builders
-----------------------------------------------------------------------------
+function TK.OpenDossier(tab)
+	if tab then TK.Dossier.CurrentTab = tab end
+	openPending = true
+	TK.RequestDossier()
+	if TK.Dossier.stats then
+		openPending = false
+		TK.BuildDossier(TK.Dossier.CurrentTab or "player")
+	end
+end
+
 local function BuildPlayerPage(parent)
 	local scroll = vgui.Create("DScrollPanel", parent)
 	scroll:Dock(FILL)
 	scroll:DockMargin(10, 10, 10, 10)
 
-	-- Header
 	local header = vgui.Create("DPanel", scroll)
 	header:Dock(TOP)
 	header:SetTall(110)
@@ -81,7 +93,6 @@ local function BuildPlayerPage(parent)
 		end
 	end
 
-	-- Stats grid
 	local stats = vgui.Create("DPanel", scroll)
 	stats:Dock(TOP)
 	stats:SetTall(260)
@@ -268,22 +279,33 @@ local function BuildContractsPage(parent)
 		end
 	end
 
-	for _, c in ipairs(CT.ClientState.slots or {}) do
+	local slotCount = CT.SlotCount or 3
+	for idx = 1, slotCount do
 		local card = vgui.Create("DPanel", scroll)
 		card:Dock(TOP)
 		card:DockMargin(0, 0, 0, 8)
 		card:SetTall(120)
+
 		card.Paint = function(s, w, h)
+			local c = CT.ClientState.slots[idx]
+			if not c then return end
 			local cust = CT.CustomerById[c.customerId]
 			local cc   = cust and Color(cust.color[1], cust.color[2], cust.color[3]) or COL_AMBER
 
 			surface.SetDrawColor(22, 22, 28, 240)
 			surface.DrawRect(0, 0, w, h)
-			surface.SetDrawColor(c.state == 1 and COL_GREEN
-				or c.state == 2 and COL_RED
-				or c.state == 3 and COL_DIM
-				or cc)
-			surface.DrawOutlinedRect(0, 0, w, h, 1)
+
+			local borderCol
+			if c.state == 1 then borderCol = COL_GREEN
+			elseif c.state == 2 then borderCol = COL_RED
+			elseif c.state == 3 then borderCol = COL_DIM
+			elseif c.state == 4 then
+				local pulse = 0.7 + math.sin(CurTime() * 4) * 0.3
+				borderCol = Color(255, 190, 40, 255 * pulse)
+			else borderCol = cc end
+
+			surface.SetDrawColor(borderCol)
+			surface.DrawOutlinedRect(0, 0, w, h, c.state == 4 and 2 or 1)
 			surface.DrawRect(0, 0, 4, h)
 
 			local custText = cust and (cust.name .. " // " .. cust.fullName) or "UNKNOWN"
@@ -295,41 +317,79 @@ local function BuildContractsPage(parent)
 			draw.SimpleText(c.title, "DermaLarge", 14, 34, COL_TEXT)
 			draw.SimpleText(c.desc, "DermaDefault", 14, 60, COL_DIM)
 
-			local pct  = c.target > 0 and math.Clamp(c.progress / c.target, 0, 1) or 0
 			local barY = 84
-			local barW = w - 260
-			surface.SetDrawColor(40, 40, 48, 255)
-			surface.DrawRect(14, barY, barW, 8)
-			surface.SetDrawColor(c.state == 1 and COL_GREEN or c.state == 2 and COL_RED or cc)
-			surface.DrawRect(14, barY, math.floor(barW * pct), 8)
-			draw.SimpleText(string.format("%d / %d", c.progress, c.target),
-				"DermaDefaultBold", 14, barY + 14, COL_TEXT)
+			if c.state == 4 then
+				local durStr = (c.duration and c.duration > 0) and TK.FormatTime(c.duration) or "NO LIMIT"
+				draw.SimpleText("OFFERED", "DermaDefaultBold", 14, barY - 4, cc)
+				draw.SimpleText("Time limit: " .. durStr .. "  ·  +" .. c.reward .. " / -" .. c.penalty,
+					"DermaDefault", 14, barY + 14, COL_DIM)
+			elseif c.state == 0 then
+				local pct = c.target > 0 and math.Clamp(c.progress / c.target, 0, 1) or 0
+				local barW = w - 260
+				surface.SetDrawColor(40, 40, 48, 255)
+				surface.DrawRect(14, barY, barW, 8)
+				surface.SetDrawColor(cc)
+				surface.DrawRect(14, barY, math.floor(barW * pct), 8)
+				draw.SimpleText(string.format("%d / %d", c.progress, c.target),
+					"DermaDefaultBold", 14, barY + 14, COL_TEXT)
 
-			draw.SimpleText(string.format("+%d pts", c.reward), "DermaDefaultBold",
-				w - 240, barY - 4, COL_GREEN)
-			draw.SimpleText(string.format("-%d on fail", c.penalty), "DermaDefault",
-				w - 240, barY + 14, COL_RED)
+				draw.SimpleText(string.format("+%d pts", c.reward), "DermaDefaultBold",
+					w - 240, barY - 4, COL_GREEN)
+				draw.SimpleText(string.format("-%d on fail", c.penalty), "DermaDefault",
+					w - 240, barY + 14, COL_RED)
 
-			if c.expiresAt > 0 then
-				local rem = math.max(0, c.expiresAt - CurTime())
-				draw.SimpleText(string.format("TIME: %s", TK.FormatTime(rem)),
-					"DermaDefaultBold", w - 14, h - 14, rem < 60 and COL_RED or COL_AMBER, 2, 2)
+				if c.expiresAt > 0 then
+					local rem = math.max(0, c.expiresAt - CurTime())
+					draw.SimpleText(string.format("TIME: %s", TK.FormatTime(rem)),
+						"DermaDefaultBold", w - 14, h - 14,
+						rem < 60 and COL_RED or COL_AMBER, 2, 2)
+				else
+					draw.SimpleText("NO TIMER", "DermaDefault", w - 14, h - 14, COL_DIM, 2, 2)
+				end
 			else
-				draw.SimpleText("NO TIMER", "DermaDefault", w - 14, h - 14, COL_DIM, 2, 2)
-			end
-
-			if c.state ~= 0 then
 				local stText = c.state == 1 and "COMPLETE" or c.state == 2 and "FAILED" or "EXPIRED"
 				local stCol  = c.state == 1 and COL_GREEN or c.state == 2 and COL_RED or COL_DIM
 				draw.SimpleText(stText, "DermaLarge", w / 2, 40, stCol, 1, 1)
+				draw.SimpleText(string.format("+%d / -%d", c.reward, c.penalty),
+					"DermaDefault", w - 14, h - 14, COL_DIM, 2, 2)
 			end
+		end
+
+		local btn = vgui.Create("DButton", card)
+		btn:SetText("ACCEPT")
+		btn:SetFont("DermaDefaultBold")
+		btn:SetTextColor(Color(20, 18, 10))
+
+		btn.Paint = function(s, w, h)
+			local c = CT.ClientState.slots[idx]
+			if not c or c.state ~= 4 then return end
+			local hover = s:IsHovered()
+			surface.SetDrawColor(hover and Color(255, 220, 80) or Color(255, 190, 40))
+			surface.DrawRect(0, 0, w, h)
+			surface.SetDrawColor(255, 240, 120)
+			surface.DrawOutlinedRect(0, 0, w, h, 1)
+		end
+
+		btn.Think = function(s)
+			local c = CT.ClientState.slots[idx]
+			s:SetVisible(c ~= nil and c.state == 4)
+			if c and c.state == 4 then
+				local w = s:GetParent():GetWide()
+				s:SetPos(w - 130, 78)
+				s:SetSize(120, 34)
+			end
+		end
+
+		btn.DoClick = function()
+			local c = CT.ClientState.slots[idx]
+			if not c or c.state ~= 4 then return end
+			net.Start("TACTIKILL_AcceptContract")
+				net.WriteUInt(idx, 4)
+			net.SendToServer()
 		end
 	end
 end
 
-----------------------------------------------------------------------------
--- Main panel
-----------------------------------------------------------------------------
 function TK.BuildDossier(forceTab)
 	if IsValid(TK.Dossier.Panel) then TK.Dossier.Panel:Remove() end
 	local tab = forceTab or TK.Dossier.CurrentTab or "player"
@@ -407,18 +467,12 @@ function TK.BuildDossier(forceTab)
 	Show(tab)
 end
 
-concommand.Add("tactikill_dossier", function()
-	openPending = true
-	TK.RequestDossier()
-	if TK.Dossier.stats then
-		openPending = false
-		TK.BuildDossier()
-	end
-end, nil, "Open agent dossier")
+concommand.Add("tactikill_dossier", function() TK.OpenDossier("player") end, nil, "Open agent dossier (Agent / Stats)")
+concommand.Add("tactikill_ranks", function() TK.OpenDossier("ranks") end, nil, "Open the rank tree")
+concommand.Add("tactikill_contracts", function() TK.OpenDossier("contracts") end, nil, "Open the contract board")
+concommand.Add("tactikill_dossier_ach", function() TK.OpenDossier("ach") end, nil, "Open achievements")
 
--- Rebuild while open on contract updates so the contracts tab stays fresh
 hook.Add("Think", "TACTIKILL_DossierLive", function()
 	if not IsValid(TK.Dossier.Panel) then return end
 	if TK.Dossier.CurrentTab ~= "contracts" then return end
-	-- cheap: repaint via child paint callbacks already handles bar/timers
 end)

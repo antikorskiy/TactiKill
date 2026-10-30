@@ -36,6 +36,7 @@ if SERVER then
 	AddCSLuaFile("weapons/tactikill_artillery_admin.lua")
 	AddCSLuaFile("weapons/tactikill_noweapon.lua")
 	AddCSLuaFile("weapons/tactikill_surrender.lua")
+	AddCSLuaFile("weapons/tactikill_terminal.lua")
 
 	include("tactikill/sh_config.lua")
 	include("tactikill/sh_settings.lua")

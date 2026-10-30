@@ -3,6 +3,7 @@ local C  = TK.Config
 local CT = TK.Contracts
 
 util.AddNetworkString("TACTIKILL_Contracts")
+util.AddNetworkString("TACTIKILL_AcceptContract")
 
 CT.RefreshAt = CurTime() + CT.RefreshInterval
 
@@ -15,26 +16,79 @@ end
 local function Reward(diff) return CT.RewardBase + diff * diff * CT.RewardPerDiff end
 
 local function BuildOne(now)
-	local tpl  = CT.Templates[math.random(#CT.Templates)]
-	local diff = math.random(CT.DifficultyMin, CT.DifficultyMax)
-	local data = tpl.build(diff)
-	local cust = tpl.customers[math.random(#tpl.customers)]
-	local reward = Reward(diff)
-	return {
+	local picked = nil
+	for _ = 1, 6 do
+		local tpl = CT.Templates[math.random(#CT.Templates)]
+		if tpl.id == "kill_class" then
+			local cls = CT.PickAvailableClass()
+			if cls then
+				picked = { tpl = tpl, classEntry = cls }
+				break
+			end
+		else
+			picked = { tpl = tpl }
+			break
+		end
+	end
+	if not picked then
+		picked = { tpl = CT.Templates[2] } 
+	end
+
+	local tpl        = picked.tpl
+	local classEntry = picked.classEntry
+
+	local diff
+	if classEntry then
+		local lo = math.max(classEntry.dMin or CT.DifficultyMin, CT.DifficultyMin)
+		local hi = math.min(classEntry.dMax or CT.DifficultyMax, CT.DifficultyMax)
+		if hi < lo then hi = lo end
+		diff = math.random(lo, hi)
+		if math.random() < 0.5 then
+			diff = math.max(lo, math.min(hi, diff))
+		end
+	end
+	if not diff then
+		diff = math.random(CT.DifficultyMin, CT.DifficultyMax)
+	end
+
+	local data     = tpl.build(diff, classEntry)
+	local cust
+	if tpl.customerPool == "all" then
+		local all = CT.AllCustomerIds()
+		cust = all[math.random(#all)]
+	else
+		cust = tpl.customers[math.random(#tpl.customers)]
+	end
+	local reward   = Reward(diff)
+	local duration = tpl.timeLimit and math.random(CT.TimeLimitMin, CT.TimeLimitMax) or 0
+
+	local c = {
 		id         = tostring(now * 1000 + math.random(1, 99999)),
 		templateId = tpl.id,
 		customerId = cust,
 		title      = tpl.title,
-		desc       = string.format(tpl.desc, data.target),
 		target     = data.target,
 		progress   = 0,
 		difficulty = diff,
 		reward     = reward,
 		penalty    = math.floor(reward * CT.PenaltyRatio),
-		state      = 0,
+		state      = 4,       -- 4 = pending accept; 0 = active
 		created    = now,
-		expiresAt  = tpl.timeLimit and (now + math.random(CT.TimeLimitMin, CT.TimeLimitMax)) or 0,
+		duration   = duration,
+		expiresAt  = 0,
 	}
+
+	if classEntry then
+		local label = classEntry.label
+		if data.target ~= 1 then label = label .. "s" end
+		c.targetClass      = classEntry.class
+		c.targetClassLabel = classEntry.label
+		c.desc  = string.format(tpl.desc, data.target, label)
+		c.title = "Hunt Order: " .. classEntry.label
+	else
+		c.desc = string.format(tpl.desc, data.target)
+	end
+	return c
 end
 
 local function FillSlots(contracts, now, onlyInactive)
@@ -65,6 +119,7 @@ local function Sync(ply)
 		net.WriteInt(c.penalty or 0, 16)
 		net.WriteUInt(c.state or 0, 4)
 		net.WriteFloat(c.expiresAt and c.expiresAt > 0 and math.max(c.expiresAt - CurTime(), 0) or 0)
+		net.WriteFloat(c.duration or 0)
 	end
 	net.WriteFloat(math.max((contracts.refreshAt or CT.RefreshAt) - CurTime(), 0))
 	net.Send(ply)
@@ -135,6 +190,46 @@ function CT.OnDeath(ply)
 	Sync(ply)
 end
 
+net.Receive("TACTIKILL_AcceptContract", function(_, ply)
+	if not IsValid(ply) or ply:IsBot() then return end
+	if not ply:Alive() then
+		TK.Notify(ply, "Cannot accept a contract while dead", 1)
+		return
+	end
+	local idx = net.ReadUInt(4)
+	if idx < 1 or idx > CT.SlotCount then return end
+
+	local st = TK.Combo.Get(ply)
+	local contracts = GetContracts(ply)
+	local c = contracts.slots[idx]
+	if not c then return end
+	if c.state ~= 4 then
+		TK.Notify(ply, "This offer is no longer available", 1)
+		Sync(ply)
+		return
+	end
+
+	if c.templateId == "kill_class" and c.targetClass then
+		if #ents.FindByClass(c.targetClass) == 0 then
+			TK.Notify(ply, "Target class not available on this map anymore", 1)
+			contracts.slots[idx] = BuildOne(CurTime())
+			Sync(ply)
+			return
+		end
+	end
+
+	c.state = 0
+	if c.duration and c.duration > 0 then
+		c.expiresAt = CurTime() + c.duration
+	else
+		c.expiresAt = 0
+	end
+
+	if TK.Persistence then TK.Persistence.MarkDirty(ply) end
+	ply:ChatPrint(string.format("[Contract] ACCEPTED: %s", c.title))
+	Sync(ply)
+end)
+
 local function RefreshAll()
 	local now = CurTime()
 	CT.RefreshAt = now + CT.RefreshInterval
@@ -145,6 +240,9 @@ local function RefreshAll()
 			for _, c in ipairs(contracts.slots) do
 				if c.state == 0 and c.expiresAt > 0 and now >= c.expiresAt then
 					Expire(c, st, ply)
+				elseif c.state == 4 then
+					c.state = 3
+					ply:ChatPrint(string.format("[Contract] OFFER EXPIRED: %s", c.title))
 				end
 			end
 			contracts.refreshAt = CT.RefreshAt

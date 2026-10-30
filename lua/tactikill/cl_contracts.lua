@@ -18,11 +18,13 @@ net.Receive("TACTIKILL_Contracts", function()
 		local pen    = net.ReadInt(16)
 		local state  = net.ReadUInt(4)
 		local expIn  = net.ReadFloat()
+		local dur    = net.ReadFloat()
 		slots[i] = {
 			templateId = tpl, customerId = cust, title = title, desc = desc,
 			progress = prog, target = target, difficulty = diff,
 			reward = reward, penalty = pen, state = state,
 			expiresAt = expIn > 0 and (CurTime() + expIn) or 0,
+			duration = dur,
 		}
 	end
 	local refreshIn = net.ReadFloat()

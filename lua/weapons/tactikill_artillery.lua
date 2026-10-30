@@ -407,7 +407,6 @@ if SERVER then
 			ply:ChatPrint("[TactiKill] ERROR: FireBarrage not loaded")
 		end
 
-		-- Remove the weapon from the player
 		local wep = ply:GetWeapon("tactikill_artillery")
 		if IsValid(wep) then
 			ply:StripWeapon("tactikill_artillery")

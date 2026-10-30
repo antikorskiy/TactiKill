@@ -1,18 +1,3 @@
---[[---------------------------------------------------------------------------
-  Project: TactiKill - Combat System
-  tactikill/sv_tools.lua  (SERVER)
-
-  Server side of the "TactiKill Timer" tool, feedback messages and the
-  explicit statistics reset command.
-
-  Permissions:
-    * The tool only ever affects the player HOLDING it (their own timer/HUD).
-    * Resetting statistics:  tactikill_reset_stats confirm [target|*]
-        - own stats: allowed if C.ResetAllowSelf
-        - other players / "*": needs C.ResetOthersLevel (admin/superadmin)
-        - server console: always allowed
------------------------------------------------------------------------------]]
-
 local TK = TACTIKILL
 local C  = TK.Config
 
@@ -42,9 +27,6 @@ local function OnCooldown(ply, key, delay)
 	return false
 end
 
-----------------------------------------------------------------------------
--- Tool actions (called from stools/tactikill_timer.lua, server side only)
-----------------------------------------------------------------------------
 function Tools.TimerToggle(ply)
 	if not IsValid(ply) or not ply:IsPlayer() then return false end
 	if OnCooldown(ply, "toggle", 0.3) then return false end
@@ -69,8 +51,6 @@ function Tools.TimerReset(ply)
 	return true
 end
 
--- HUD visibility is a client setting; the server only relays the request.
--- The tool gun may call Reload repeatedly while the key is held, so debounce.
 function Tools.HUDToggle(ply)
 	if not IsValid(ply) or not ply:IsPlayer() then return false end
 	if OnCooldown(ply, "hud", 0.5) then return false end
@@ -80,9 +60,6 @@ function Tools.HUDToggle(ply)
 	return true
 end
 
-----------------------------------------------------------------------------
--- Statistics reset
-----------------------------------------------------------------------------
 function Tools.CanReset(caller, target)
 	if not IsValid(caller) then return true end -- server console
 	if caller == target then return C.ResetAllowSelf end
@@ -117,8 +94,6 @@ local function FindTargets(arg)
 end
 
 concommand.Add("tactikill_reset_stats", function(caller, _, args)
-	-- The literal word "confirm" is required so the destructive action can
-	-- never be triggered by an accidental/ambiguous input.
 	if args[1] ~= "confirm" then
 		Reply(caller, "Usage: tactikill_reset_stats confirm [userid|name|*]", 1)
 		return

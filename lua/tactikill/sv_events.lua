@@ -168,7 +168,6 @@ local function DoBombardment()
 	local preDelay = (#beams - 1) * E.Bombardment.BeamDelay + E.Bombardment.ChargeTime
 	local totalTime = preDelay + #beams * E.Bombardment.FireInterval + E.Bombardment.SoundLeadTime + 5
 
-	-- Safety: whatever happens, unlock the event after totalTime seconds.
 	timer.Create("TACTIKILL_EventSafeB", totalTime, 1, ResetEventBusy)
 
 	timer.Simple(preDelay, function()
@@ -271,7 +270,6 @@ local function DoAirdrop()
 	local fallTime = E.Airdrop.FallTime
 	local startZ = pos.z + 800
 
-	-- Safety unlock: airdrop animation + 10s extra.
 	timer.Create("TACTIKILL_EventSafeA", fallTime + 30, 1, ResetEventBusy)
 
 	net.Start("TACTIKILL_Event_Airdrop_Start")

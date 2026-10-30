@@ -28,8 +28,6 @@ SWEP.DrawCrosshair  = false
 SWEP.ViewModel      = ""
 SWEP.WorldModel     = ""
 
--- "normal"  — руки опущены, нейтральная стойка (лучший вариант для "опущенные руки")
--- "passive" — ещё более расслабленная поза (альтернатива, если хочется совсем свободно)
 local HOLDTYPE = "normal"
 
 function SWEP:Initialize()
