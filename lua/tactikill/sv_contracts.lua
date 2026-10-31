@@ -5,7 +5,6 @@ local CT = TK.Contracts
 util.AddNetworkString("TACTIKILL_Contracts")
 util.AddNetworkString("TACTIKILL_AcceptContract")
 
--- Weapon category helper (server-side, used by weapon-specific templates)
 function CT.WeaponCategory(cls)
 	if not isstring(cls) or cls == "" then return nil end
 	local w = string.lower(cls)
@@ -36,7 +35,6 @@ function CT.WeaponCategory(cls)
 	return nil
 end
 
--- Extra contract templates (appended to the shared CT.Templates table)
 local ExtraTemplates = {
 	{
 		id = "kill_prop", title = "Gravity Assassin",
@@ -215,7 +213,7 @@ local function BuildOne(now)
 		difficulty = diff,
 		reward     = reward,
 		penalty    = math.floor(reward * CT.PenaltyRatio),
-		state      = 4,       -- 4 = pending accept; 0 = active
+		state      = 4,
 		created    = now,
 		duration   = duration,
 		expiresAt  = 0,
