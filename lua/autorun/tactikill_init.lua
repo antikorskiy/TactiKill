@@ -30,6 +30,7 @@ if SERVER then
 	AddCSLuaFile("tactikill/cl_sounds.lua")
 	AddCSLuaFile("tactikill/cl_achievements.lua")
 	AddCSLuaFile("tactikill/cl_contracts.lua")
+	AddCSLuaFile("tactikill/cl_leaderboard.lua")
 	AddCSLuaFile("tactikill/cl_dossier.lua")
 
 	AddCSLuaFile("weapons/tactikill_artillery.lua")
@@ -54,6 +55,7 @@ if SERVER then
 	include("tactikill/sv_deathscreen.lua")
 	include("tactikill/sv_sounds.lua")
 	include("tactikill/sv_persistence.lua")
+	include("tactikill/sv_leaderboard.lua")
 else
 	include("tactikill/sh_config.lua")
 	include("tactikill/sh_settings.lua")
@@ -68,5 +70,6 @@ else
 	include("tactikill/cl_deathscreen.lua")
 	include("tactikill/cl_sounds.lua")
 	include("tactikill/cl_contracts.lua")
+	include("tactikill/cl_leaderboard.lua")
 	include("tactikill/cl_dossier.lua")
 end

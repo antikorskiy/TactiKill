@@ -5,6 +5,149 @@ local CT = TK.Contracts
 util.AddNetworkString("TACTIKILL_Contracts")
 util.AddNetworkString("TACTIKILL_AcceptContract")
 
+-- Weapon category helper (server-side, used by weapon-specific templates)
+function CT.WeaponCategory(cls)
+	if not isstring(cls) or cls == "" then return nil end
+	local w = string.lower(cls)
+	if w == "weapon_pistol" or w == "weapon_357" or w == "weapon_alyxgun"
+		or string.find(w, "pistol", 1, true)
+		or string.find(w, "magnum", 1, true)
+		or string.find(w, "revolver", 1, true) then
+		return "pistol"
+	end
+	if w == "weapon_smg1" or w == "weapon_ar2" or w == "weapon_smg2"
+		or string.find(w, "smg", 1, true)
+		or string.find(w, "rifle", 1, true)
+		or string.find(w, "ak47", 1, true) then
+		return "rifle"
+	end
+	if w == "weapon_shotgun" or string.find(w, "shotgun", 1, true) then
+		return "shotgun"
+	end
+	if w == "weapon_crossbow" or string.find(w, "sniper", 1, true) or string.find(w, "awp", 1, true) then
+		return "sniper"
+	end
+	if w == "weapon_crowbar" or w == "weapon_stunstick"
+		or string.find(w, "crowbar", 1, true)
+		or string.find(w, "knife", 1, true)
+		or string.find(w, "bat", 1, true) then
+		return "melee"
+	end
+	return nil
+end
+
+-- Extra contract templates (appended to the shared CT.Templates table)
+local ExtraTemplates = {
+	{
+		id = "kill_prop", title = "Gravity Assassin",
+		desc = "Kill %d hostiles with physics props",
+		customerPool = "all", timeLimit = true,
+		build = function(d) return { target = math.max(1, math.floor(d * 0.8)) } end,
+		onKill = function(c, st, ev) if ev.style and ev.style.Prop then c.progress = c.progress + 1 end end,
+	},
+	{
+		id = "kill_slowmo", title = "Bullet Time",
+		desc = "Kill %d hostiles in slow motion",
+		customerPool = "all", timeLimit = true,
+		build = function(d) return { target = math.max(1, math.floor(d * 0.7)) } end,
+		onKill = function(c, st, ev) if ev.style and ev.style.SlowMo then c.progress = c.progress + 1 end end,
+	},
+	{
+		id = "kill_style_any", title = "Signature Kill",
+		desc = "Kill %d hostiles with any style bonus",
+		customerPool = "all", timeLimit = true,
+		build = function(d) return { target = math.max(2, d + 1) } end,
+		onKill = function(c, st, ev)
+			local s = ev.style
+			if s and (s.Airborne or s.Slide or s.SlowMo or s.PointBlank or s.LongRange or s.Prop) then
+				c.progress = c.progress + 1
+			end
+		end,
+	},
+	{
+		id = "kill_lowhp", title = "Do or Die",
+		desc = "Kill %d hostiles while below 25 HP",
+		customerPool = "all", timeLimit = true,
+		build = function(d) return { target = math.max(1, math.floor(d * 0.7)) } end,
+		onKill = function(c, st, ev) if ev.hp and ev.hp <= 25 then c.progress = c.progress + 1 end end,
+	},
+	{
+		id = "kill_fullhp", title = "Untouched Predator",
+		desc = "Kill %d hostiles at full health",
+		customerPool = "all", timeLimit = true,
+		build = function(d) return { target = math.max(2, d + 1) } end,
+		onKill = function(c, st, ev) if ev.hp and ev.maxHp and ev.hp >= ev.maxHp then c.progress = c.progress + 1 end end,
+	},
+	{
+		id = "kill_double", title = "Double Down",
+		desc = "Land %d double kills",
+		customerPool = "all", timeLimit = true,
+		build = function(d) return { target = math.max(1, math.floor(d * 0.7)) } end,
+		onKill = function(c, st, ev) if ev.step == 2 then c.progress = c.progress + 1 end end,
+	},
+	{
+		id = "kill_headshot_chain", title = "Chain Reaction",
+		desc = "Get %d headshots in a row",
+		customerPool = "all", timeLimit = true,
+		build = function(d) return { target = math.max(2, d + 1) } end,
+		onKill = function(c, st)
+			if st.headshotChain and st.headshotChain > (c.progress or 0) then
+				c.progress = st.headshotChain
+			end
+		end,
+	},
+	{
+		id = "kill_perfect", title = "Flawless",
+		desc = "Get %d kills in a row without taking damage",
+		customerPool = "all", timeLimit = true,
+		build = function(d) return { target = math.max(2, d + 1) } end,
+		onKill = function(c, st)
+			if st.perfectKills and st.perfectKills > (c.progress or 0) then
+				c.progress = st.perfectKills
+			end
+		end,
+	},
+	{
+		id = "kill_variety", title = "Arms Dealer",
+		desc = "Kill with %d different weapons this life",
+		customerPool = "all", timeLimit = false,
+		build = function(d) return { target = math.max(2, math.min(6, d + 2)) } end,
+		onKill = function(c, st)
+			if st.weaponChainUnique and st.weaponChainUnique > (c.progress or 0) then
+				c.progress = st.weaponChainUnique
+			end
+		end,
+	},
+	{
+		id = "kill_pistol", title = "Sidearm Specialist",
+		desc = "Kill %d hostiles with a pistol",
+		customerPool = "all", timeLimit = true,
+		build = function(d) return { target = math.max(2, d + 1) } end,
+		onKill = function(c, st, ev)
+			if CT.WeaponCategory(ev.weaponClass) == "pistol" then c.progress = c.progress + 1 end
+		end,
+	},
+	{
+		id = "kill_shotgun", title = "Close Support",
+		desc = "Kill %d hostiles with a shotgun",
+		customerPool = "all", timeLimit = true,
+		build = function(d) return { target = math.max(2, d + 1) } end,
+		onKill = function(c, st, ev)
+			if CT.WeaponCategory(ev.weaponClass) == "shotgun" then c.progress = c.progress + 1 end
+		end,
+	},
+	{
+		id = "kill_melee", title = "CQC Master",
+		desc = "Kill %d hostiles in melee",
+		customerPool = "all", timeLimit = true,
+		build = function(d) return { target = math.max(1, math.floor(d * 0.7)) } end,
+		onKill = function(c, st, ev)
+			if CT.WeaponCategory(ev.weaponClass) == "melee" then c.progress = c.progress + 1 end
+		end,
+	},
+}
+for _, tpl in ipairs(ExtraTemplates) do CT.Templates[#CT.Templates + 1] = tpl end
+
 CT.RefreshAt = CurTime() + CT.RefreshInterval
 
 local function GetContracts(ply)

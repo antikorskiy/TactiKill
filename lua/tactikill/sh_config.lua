@@ -1,6 +1,6 @@
 TACTIKILL = TACTIKILL or {}
 local TK = TACTIKILL
-TK.Version = "1.4.2"
+TK.Version = "1.5.0"
 
 local C = {}
 TK.Config = C
@@ -208,6 +208,20 @@ C.Achievements = {
 	SoundEnabled = true,
 }
 
+C.Leaderboard = {
+	Enabled        = true,
+	Limit          = 25,
+	MinKills       = 1,
+	CacheSeconds   = 30,
+	Categories = {
+		{ id = "kills",       label = "KILLS"     },
+		{ id = "score",       label = "SCORE"     },
+		{ id = "best_streak", label = "STREAK"    },
+		{ id = "headshots",   label = "HEADSHOTS" },
+		{ id = "multikills",  label = "MULTI"     },
+	},
+}
+
 C.PlayerRanks = {
 	{ min = 0,     name = "Silver I",                          symbol = ">", count = 1 },
 	{ min = 1,     name = "Silver II",                         symbol = ">", count = 2 },
@@ -392,6 +406,22 @@ function TK.ValidateConfig()
 	C.Achievements.Enabled      = bool(C.Achievements.Enabled, true)
 	C.Achievements.Bonus        = int(C.Achievements.Bonus, 0, 0, 100000)
 	C.Achievements.SoundEnabled = bool(C.Achievements.SoundEnabled, true)
+
+	if not istable(C.Leaderboard) then C.Leaderboard = {} end
+	local LB = C.Leaderboard
+	LB.Enabled      = bool(LB.Enabled, true)
+	LB.Limit        = int(LB.Limit, 25, 1, 100)
+	LB.MinKills     = int(LB.MinKills, 1, 0, 100000)
+	LB.CacheSeconds = num(LB.CacheSeconds, 30, 0, 600)
+	if not istable(LB.Categories) or #LB.Categories == 0 then
+		LB.Categories = {
+			{ id = "kills",       label = "KILLS"     },
+			{ id = "score",       label = "SCORE"     },
+			{ id = "best_streak", label = "STREAK"    },
+			{ id = "headshots",   label = "HEADSHOTS" },
+			{ id = "multikills",  label = "MULTI"     },
+		}
+	end
 
 	if not istable(C.AutoSpawn) then C.AutoSpawn = {} end
 	local AS = C.AutoSpawn

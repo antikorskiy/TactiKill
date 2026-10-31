@@ -2,7 +2,7 @@
 
 **A tactical combat scoring system for Garry's Mod** — killstreak combos, CS:GO-style player ranks, achievements, contracts, style kills, random events, and a fully skinnable HUD.
 
-Version: **1.4.2**
+Version: **1.5.0**
 
 ---
 
@@ -26,14 +26,15 @@ Version: **1.4.2**
 16. [User Interface](#user-interface)
 17. [Screen Shake](#screen-shake)
 18. [Persistence (SQLite)](#persistence-sqlite)
-19. [Auto-Spawn](#auto-spawn)
-20. [Console Commands](#console-commands)
-21. [Client ConVars](#client-convars)
-22. [Server Settings (Tool Menu)](#server-settings-tool-menu)
-23. [Configuration Reference (`sh_config.lua`)](#configuration-reference-sh_configlua)
-24. [Sound Files](#sound-files)
-25. [Debugging](#debugging)
-26. [Notes & Tips](#notes--tips)
+19. [Leaderboard](#leaderboard)
+20. [Auto-Spawn](#auto-spawn)
+21. [Console Commands](#console-commands)
+22. [Client ConVars](#client-convars)
+23. [Server Settings (Tool Menu)](#server-settings-tool-menu)
+24. [Configuration Reference (`sh_config.lua`)](#configuration-reference-sh_configlua)
+25. [Sound Files](#sound-files)
+26. [Debugging](#debugging)
+27. [Notes & Tips](#notes--tips)
 
 ---
 
@@ -59,14 +60,15 @@ Everything is designed to be:
 | **Style Kills** | Airborne, Slide, Slow-Mo, Point Blank, Long Range, Prop |
 | **Multikills** | Double / Triple / Squad Wipe / Mass Kill / Bloodbath |
 | **Achievements** | ~100 achievements across 14 categories, with unlock banners + sound |
-| **Contracts** | Procedurally generated contracts from 100+ fictional organizations, 10 slots, difficulty 1–10 |
+| **Contracts** | 22 contract templates from 100+ fictional organizations, 10 slots, difficulty 1–10 |
 | **Random Events** | Bombardments (beam-of-light strikes) and falling airdrops |
 | **HUD** | Agent panel, player rank panel, stats panel, combo panel, style log, banners |
 | **Dossier** | Full-screen `AGENT / STATS`, `RANKS`, `ACHIEVEMENTS`, `CONTRACTS` tabs |
 | **Scoreboard** | Replaces the default scoreboard with a detailed combat table |
-| **Death Screen** | Historical quotes and a respawn countdown |
+| **Death Screen** | First-person death camera (locked position, free look), historical quotes, and a respawn countdown |
 | **Screen Shake** | Camera-only, no aim impact by default, tuned per rank |
 | **Persistence** | Auto-saved SQLite progress (45s autosave + shutdown save) |
+| **Leaderboard** | Server-wide persistent rankings (kills / score / streak / headshots / multikills), backed by SQLite |
 | **Weapons** | Artillery designator (player + admin), Field Terminal, Surrender, Free Hands |
 | **Auto-Spawn** | Server-scheduled Combine / Rebel spawning |
 | **Tools** | Timer tool with LMB/RMB/Reload binds |
@@ -109,8 +111,8 @@ tactikill/
 │   │   ├── sh_settings.lua           # Server settings definitions
 │   │   ├── sh_achievements.lua       # Achievement definitions
 │   │   ├── sh_contracts.lua          # Contract templates & customers
-│   │   ├── cl_*.lua                  # Client-only modules
-│   │   └── sv_*.lua                  # Server-only modules
+│   │   ├── cl_*.lua                  # Client-only modules (incl. cl_leaderboard.lua)
+│   │   └── sv_*.lua                  # Server-only modules (incl. sv_leaderboard.lua)
 │   └── weapons/
 │       ├── tactikill_artillery.lua
 │       ├── tactikill_artillery_admin.lua
@@ -132,8 +134,8 @@ Modules are grouped by prefix:
 | Prefix | Runs on | Purpose |
 |---|---|---|
 | `sh_` | Client + Server | Shared data (config, achievements, contracts, settings) |
-| `cl_` | Client | HUD, scoreboard, dossier, death screen, shake, sounds, events |
-| `sv_` | Server | Scoring, combo, achievements, contracts, events, persistence, auto-spawn, tools |
+| `cl_` | Client | HUD, scoreboard, dossier, leaderboard, death screen, shake, sounds, events |
+| `sv_` | Server | Scoring, combo, achievements, contracts, events, persistence, leaderboard, auto-spawn, tools |
 
 ---
 
@@ -356,6 +358,18 @@ Contracts are procedurally generated tasks offered by fictional organizations (I
 | `kill_no_death` | Untouchable | `diff + 2`, fails on death |
 | `kill_multikill` | Rampage | `max(2, diff - 3)` |
 | `kill_class` | Hunt Order | Scales with class difficulty; capped at 2/3/5 |
+| `kill_prop` | Gravity Assassin | `max(1, floor(diff * 0.8))`, prop kills |
+| `kill_slowmo` | Bullet Time | `max(1, floor(diff * 0.7))`, slow-mo kills |
+| `kill_style_any` | Signature Kill | `max(2, diff + 1)`, any style bonus |
+| `kill_lowhp` | Do or Die | `max(1, floor(diff * 0.7))`, kills at HP <= 25 |
+| `kill_fullhp` | Untouched Predator | `max(2, diff + 1)`, kills at full HP |
+| `kill_double` | Double Down | `max(1, floor(diff * 0.7))`, exact double kills |
+| `kill_headshot_chain` | Chain Reaction | `max(2, diff + 1)`, consecutive headshots |
+| `kill_perfect` | Flawless | `max(2, diff + 1)`, kills without taking damage |
+| `kill_variety` | Arms Dealer | `clamp(diff + 2, 2, 6)`, distinct weapons per life, no timer |
+| `kill_pistol` | Sidearm Specialist | `max(2, diff + 1)`, pistol kills |
+| `kill_shotgun` | Close Support | `max(2, diff + 1)`, shotgun kills |
+| `kill_melee` | CQC Master | `max(1, floor(diff * 0.7))`, melee kills |
 
 ### Rewards
 
@@ -490,6 +504,7 @@ Full-screen tabs:
 - **RANKS** — full player-rank ladder with your current position.
 - **ACHIEVEMENTS** — category-grouped achievement list.
 - **CONTRACTS** — 10-slot contract board with "ACCEPT" buttons for pending offers.
+- **LEADERBOARD** — server-wide rankings for KILLS / SCORE / STREAK / HEADSHOTS / MULTI, backed by SQLite (falls back to online players if SQL is unavailable).
 
 Opened via:
 
@@ -497,11 +512,13 @@ Opened via:
 - `tactikill_ranks`
 - `tactikill_contracts`
 - `tactikill_dossier_ach`
+- `tactikill_leaderboard`
 - `tactikill_terminal` weapon (E)
 - The Tool Menu buttons.
 
 ### Death Screen (`cl_deathscreen.lua`)
 
+- Uses a **first-person death camera**: your view stays at the spot where you died, but you can still look around with the mouse. No more free-floating death cam.
 - Fades in over 0.4s, holds the quote, fades out over 0.5s.
 - Renders a **random quote** from `C.DeathScreen.Quotes` and a live respawn countdown.
 - Server **delays respawn** by `C.DeathScreen.Duration` (default 5s) — the player is spawned via `timer.Simple(dur + 0.1, …)`.
@@ -544,6 +561,7 @@ When available (`C.PersistenceEnabled` and `sql` present), TactiKill uses:
 ```sql
 CREATE TABLE tactikill_players (
     steamid TEXT PRIMARY KEY,
+    nick TEXT,                   -- last known nickname
     kills, deaths, score, headshots, multikills, best_streak INTEGER,
     shots, hits INTEGER,
     distance_sum, distance_count, distance_max, distance_min REAL/INTEGER,
@@ -563,7 +581,8 @@ CREATE TABLE tactikill_players (
   - On `PlayerDisconnected`.
   - On server `ShutDown`.
 - **Anti-garbage rows** with `steamid ∈ {0, "", STEAM_0:0:0, STEAM_ID_PENDING, UNKNOWN}` are pruned on init.
-- **Schema migration** adds `achievements` and `trials` columns if missing.
+- **Schema migration** adds `nick`, `achievements`, and `trials` columns if missing.
+- **Nick** is refreshed on load/save, so the leaderboard never shows `UNKNOWN` for returning players.
 
 ### Trials blob
 
@@ -575,6 +594,21 @@ bestRank, bestMultikill, agentId, contractScore, contracts
 ```
 
 If SQL is unavailable, persistence silently disables and the addon keeps working in memory.
+
+---
+
+## Leaderboard
+
+Server-wide persistent rankings, stored in the same SQLite table and exposed through the dossier **LEADERBOARD** tab (`tactikill_leaderboard`).
+
+- **Categories**: `kills`, `score`, `best_streak`, `headshots`, `multikills` (configurable via `C.Leaderboard.Categories`).
+- **Limit**: top `C.Leaderboard.Limit` players (default 25, max 100).
+- **MinKills**: only players with at least `C.Leaderboard.MinKills` kills (default 1).
+- **Caching**: results cached for `C.Leaderboard.CacheSeconds` (default 30s) per category, invalidated on every save.
+- **Fallback**: if SQL is unavailable or `PersistenceEnabled = false`, the leaderboard shows the current online players instead.
+- **Nick display**: uses the stored `nick` column; if empty, falls back to the online nick by SteamID64/SteamID, then to `AGENT-<steamid tail>`.
+- **Network**: one `TACTIKILL_Leaderboard` message per request, 1 request/second per player max.
+- **Command**: `tactikill_leaderboard` (client) opens the tab.
 
 ---
 
@@ -612,6 +646,7 @@ tactikill_autospawn clear
 | `tactikill_ranks` | Open the dossier on the RANKS tab |
 | `tactikill_contracts` | Open the dossier on the CONTRACTS tab |
 | `tactikill_dossier_ach` | Open the dossier on the ACHIEVEMENTS tab |
+| `tactikill_leaderboard` | Open the server leaderboard |
 | `tactikill_achievements` | Open the standalone achievements panel |
 | `tactikill_achievements_refresh` | Re-request achievements from the server |
 | `tactikill_arty_fire` | Fire the held artillery designator (if held and active) |
@@ -763,6 +798,24 @@ C.ScreenShakeMaxIntensity = 4.5
 C.ShakeRollDegrees        = 0  -- keep at 0 for aim-neutral shake
 ```
 
+### Leaderboard
+
+```lua
+C.Leaderboard = {
+    Enabled      = true,
+    Limit        = 25,        -- 1..100
+    MinKills     = 1,
+    CacheSeconds = 30,        -- 0..600
+    Categories   = {
+        { id = "kills",       label = "KILLS"     },
+        { id = "score",       label = "SCORE"     },
+        { id = "best_streak", label = "STREAK"    },
+        { id = "headshots",   label = "HEADSHOTS" },
+        { id = "multikills",  label = "MULTI"     },
+    },
+}
+```
+
 ### Events / auto-spawn / achievements
 
 See the full commented table in `sh_config.lua`.
@@ -846,6 +899,9 @@ Events and artillery also print to console with `[TACTIKILL]` / `[TACTIKILL ADMI
 - **All HUD elements are scale-aware** — everything uses `ScrH()/1080` clamping and respects `tactikill_hud_scale`.
 - **`TACTIKILL_BuildSettings`** is exposed globally — other addons can append to the TactiKill settings panel.
 - **Achievements are checked on every kill**; if you add new `add(...)` definitions, they will automatically be picked up by the existing sync loop and the dossier/panel UI.
+- **Leaderboard nick fallback** — if a player's stored nick is empty (e.g. old row before the `nick` migration), the addon shows the online nick or `AGENT-<steamid tail>` instead of `UNKNOWN`.
+- **First-person death camera** — position is locked at the death spot, free look with the mouse. Set `C.DeathScreen.Enabled = false` to disable it entirely.
+- **Contract templates** — 22 built-in templates now. Custom templates can be appended to `CT.Templates` at runtime (server-side only).
 
 ---
 

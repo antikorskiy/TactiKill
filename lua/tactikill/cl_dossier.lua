@@ -430,6 +430,9 @@ function TK.BuildDossier(forceTab)
 		for pid, page in pairs(pages) do
 			if pid == id then page:Show() else page:Hide() end
 		end
+		if id == "leaderboard" and TK.RequestLeaderboard then
+			TK.RequestLeaderboard(TK.Leaderboard and TK.Leaderboard.category or nil)
+		end
 	end
 
 	local function MakeTab(id, label, builder)
@@ -463,6 +466,9 @@ function TK.BuildDossier(forceTab)
 	MakeTab("ranks",     "RANKS",         BuildRanksPage)
 	MakeTab("ach",       "ACHIEVEMENTS",  BuildAchPage)
 	MakeTab("contracts", "CONTRACTS",     BuildContractsPage)
+	if TK.BuildLeaderboardPage then
+		MakeTab("leaderboard", "LEADERBOARD", TK.BuildLeaderboardPage)
+	end
 
 	Show(tab)
 end
@@ -471,6 +477,7 @@ concommand.Add("tactikill_dossier", function() TK.OpenDossier("player") end, nil
 concommand.Add("tactikill_ranks", function() TK.OpenDossier("ranks") end, nil, "Open the rank tree")
 concommand.Add("tactikill_contracts", function() TK.OpenDossier("contracts") end, nil, "Open the contract board")
 concommand.Add("tactikill_dossier_ach", function() TK.OpenDossier("ach") end, nil, "Open achievements")
+concommand.Add("tactikill_leaderboard", function() TK.OpenDossier("leaderboard") end, nil, "Open the server leaderboard")
 
 hook.Add("Think", "TACTIKILL_DossierLive", function()
 	if not IsValid(TK.Dossier.Panel) then return end

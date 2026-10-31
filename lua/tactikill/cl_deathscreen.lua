@@ -123,3 +123,58 @@ local function DrawDeathScreen()
 end
 
 hook.Add("HUDPaint", "TACTIKILL_DeathScreen_HUD", DrawDeathScreen)
+
+local lastAlivePos = nil
+local lastAliveAng = nil
+
+hook.Add("Think", "TACTIKILL_FirstPersonDeath_Snapshot", function()
+	local lp = LocalPlayer()
+	if not IsValid(lp) then return end
+	if lp:Alive() then
+		local p = lp:EyePos()
+		if p and p:LengthSqr() > 1 then lastAlivePos = p end
+		local a = lp:EyeAngles()
+		if a and (a.p ~= 0 or a.y ~= 0 or a.r ~= 0) then lastAliveAng = a end
+	end
+end)
+
+local function FirstPersonDeathActive(ply)
+	if not IsValid(ply) or ply ~= LocalPlayer() then return false end
+	if ply:Alive() then return false end
+	if deathStartedAt == 0 then return false end
+	if not C.DeathScreen or not C.DeathScreen.Enabled then return false end
+	local elapsed = CurTime() - deathStartedAt
+	if elapsed < 0 or elapsed > deathDuration then return false end
+	return true
+end
+
+hook.Add("CalcView", "TACTIKILL_FirstPersonDeath", function(ply, pos, angles, fov)
+	if not FirstPersonDeathActive(ply) then return end
+
+	local origin = lastAlivePos
+	if not origin or origin:LengthSqr() < 1 then
+		local rag = ply:GetRagdollEntity()
+		if IsValid(rag) then
+			local att = rag:GetAttachment(rag:LookupAttachment("eyes") or 0)
+			if att and att.Pos then origin = att.Pos
+			else origin = rag:GetPos() + Vector(0, 0, 64) end
+		else
+			origin = ply:GetPos() + Vector(0, 0, 64)
+		end
+	end
+
+	local viewAng = angles
+	if not viewAng or (viewAng.p == 0 and viewAng.y == 0 and viewAng.r == 0) then
+		viewAng = ply:EyeAngles()
+		if not viewAng or (viewAng.p == 0 and viewAng.y == 0 and viewAng.r == 0) then
+			viewAng = lastAliveAng or Angle(0, 0, 0)
+		end
+	end
+
+	return {
+		origin     = origin,
+		angles     = viewAng,
+		fov        = fov,
+		drawviewer = false,
+	}
+end)

@@ -9,7 +9,6 @@ local Tools = TK.Tools
 
 local Cooldowns = setmetatable({}, { __mode = "k" })
 
--- kind: 0 info, 1 error/denied
 function TK.Notify(ply, msg, kind)
 	if not IsValid(ply) or ply:IsBot() then return end
 	net.Start("TACTIKILL_Notify")

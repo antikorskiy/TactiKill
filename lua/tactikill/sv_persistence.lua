@@ -73,6 +73,7 @@ local function InitDB()
 
 	sql.Query([[CREATE TABLE IF NOT EXISTS tactikill_players (
 		steamid TEXT PRIMARY KEY,
+		nick TEXT DEFAULT '',
 		kills INTEGER DEFAULT 0,
 		deaths INTEGER DEFAULT 0,
 		score INTEGER DEFAULT 0,
@@ -93,10 +94,11 @@ local function InitDB()
 	)]])
 
 	local cols = sql.Query("PRAGMA table_info(tactikill_players)") or {}
-	local hasAch, hasTrials = false, false
+	local hasAch, hasTrials, hasNick = false, false, false
 	for _, col in ipairs(cols) do
 		if col.name == "achievements" then hasAch = true end
 		if col.name == "trials"       then hasTrials = true end
+		if col.name == "nick"         then hasNick = true end
 	end
 	if not hasAch then
 		sql.Query("ALTER TABLE tactikill_players ADD COLUMN achievements TEXT DEFAULT '{}'")
@@ -105,6 +107,10 @@ local function InitDB()
 	if not hasTrials then
 		sql.Query("ALTER TABLE tactikill_players ADD COLUMN trials TEXT DEFAULT '{}'")
 		print("[TACTIKILL] Added 'trials' column")
+	end
+	if not hasNick then
+		sql.Query("ALTER TABLE tactikill_players ADD COLUMN nick TEXT DEFAULT ''")
+		print("[TACTIKILL] Added 'nick' column")
 	end
 
 	sql.Query([[
@@ -131,7 +137,15 @@ function P.Load(ply)
 	local row = sql.QueryRow("SELECT * FROM tactikill_players WHERE steamid = " .. sql.SQLStr(sid))
 	if not row then
 		TK.Debug("no saved progress for %s (%s)", ply:Nick(), sid)
+		if TK.Leaderboard and TK.Leaderboard.Invalidate then TK.Leaderboard.Invalidate() end
 		return
+	end
+
+	local currentNick = string.sub(ply:Nick() or "", 1, 64)
+	if currentNick ~= "" and (row.nick == nil or row.nick == "" or row.nick ~= currentNick) then
+		sql.Query("UPDATE tactikill_players SET nick = " .. sql.SQLStr(currentNick)
+			.. " WHERE steamid = " .. sql.SQLStr(sid))
+		row.nick = currentNick
 	end
 
 	local st = TK.Combo.Get(ply)
@@ -210,14 +224,15 @@ function P.Save(ply)
 
 	local q = string.format([[
 		REPLACE INTO tactikill_players (
-			steamid, kills, deaths, score, headshots, multikills, best_streak,
+			steamid, nick, kills, deaths, score, headshots, multikills, best_streak,
 			shots, hits, distance_sum, distance_count, distance_max, distance_min,
 			weapon_kills, fav_weapon, fav_weapon_kills, hg_counts,
 			achievements, trials, last_seen
-		) VALUES (%s, %d, %d, %d, %d, %d, %d, %d, %d, %f, %d, %f, %f,
+		) VALUES (%s, %s, %d, %d, %d, %d, %d, %d, %d, %d, %f, %d, %f, %f,
 		          %s, %s, %d, %s, %s, %s, %d)
 	]],
 		sql.SQLStr(sid),
+		sql.SQLStr(string.sub(ply:Nick() or "", 1, 64)),
 		SafeInt(st.kills), SafeInt(st.deaths), SafeInt(st.score),
 		SafeInt(st.headshots), SafeInt(st.multikills), SafeInt(st.bestStreak),
 		SafeInt(st.shots), SafeInt(st.hits),
@@ -248,8 +263,15 @@ function P.Save(ply)
 		if C.Debug then print(q) end
 	else
 		TK.Debug("saved progress for %s", ply:Nick())
+		if TK.Leaderboard and TK.Leaderboard.Invalidate then
+			TK.Leaderboard.Invalidate()
+		end
 	end
 	dirty[ply] = nil
+end
+
+function P.Available()
+	return available and C.PersistenceEnabled
 end
 
 function P.Delete(ply)
